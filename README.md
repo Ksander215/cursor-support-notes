@@ -1,5 +1,3 @@
-# cursor-support-notes
-My notes on troubleshooting and supporting Cursor users
 # Cursor Support Notes
 
 A growing collection of troubleshooting tips, common issues, and user guidance for [Cursor](https://cursor.sh) — an AI-powered code editor for developers.
