@@ -22,3 +22,21 @@ As someone transitioning into technical support, I’m documenting real and simu
 ---
 
 *Updated regularly. Open to feedback!*
+
+### 3. "Cursor isn’t syncing with my GitHub repository"
+
+- ✅ **Check**: Is GitHub connected in Cursor settings?  
+  → Go to `Settings > Integrations > GitHub` and ensure your account is linked.
+
+- ✅ **Check**: Are you using a **personal access token (PAT)** with correct scopes?  
+  → Token must include: `repo`, `workflow`, `read:user`  
+  → [GitHub guide to creating a PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+
+- ✅ **Fix**: If sync fails after linking:  
+  1. Revoke the old token in GitHub  
+  2. Generate a new one with required scopes  
+  3. Reconnect GitHub in Cursor
+
+- ✅ **Note**: Private repositories require explicit token access. Public repos sync automatically once linked.
+
+- 🛠️ **Debug tip**: Check `Help > Toggle Developer Tools > Console` for auth errors like `403 Forbidden`.
