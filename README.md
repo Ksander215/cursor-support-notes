@@ -40,3 +40,25 @@ As someone transitioning into technical support, I’m documenting real and simu
 - ✅ **Note**: Private repositories require explicit token access. Public repos sync automatically once linked.
 
 - 🛠️ **Debug tip**: Check `Help > Toggle Developer Tools > Console` for auth errors like `403 Forbidden`.
+
+
+Hi there,
+
+Thanks so much for reaching out — I know how frustrating it can feel when the AI doesn’t “see” your code, even though the file is right there!
+
+This usually happens when Cursor doesn’t have full access to your **project context**. To fix it:
+
+✅ **Please check**:  
+1. Is your **entire React project folder** open in Cursor? (Not just a single file)  
+2. Go to `File > Open Folder` and select the **root directory** — the one containing `package.json`, `src/`, and `node_modules/`.
+
+Once Cursor loads the full project, it can index your files and understand their relationships. After that, `Cmd+K` will work as expected!
+
+If you’ve already done this and it’s still not working, feel free to share:
+- Your OS (macOS version)  
+- Whether you see any errors in `Help > Toggle Developer Tools > Console`
+
+Happy to help you get this sorted!
+
+Best regards,  
+Alexander
