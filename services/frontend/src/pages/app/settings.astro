@@ -1,0 +1,103 @@
+---
+import AppShell from "../../components/layout/AppShell.astro";
+import Button from "../../components/ui/Button.astro";
+import Card from "../../components/ui/Card.astro";
+import Input from "../../components/ui/Input.astro";
+---
+
+<AppShell title="Settings · sec-scanner.pro" description="Local client settings" active="settings">
+  <Card class="section">
+    <h1 class="h2">Settings</h1>
+    <p class="muted" style="margin: var(--space-2) 0 0;">
+      Stored locally in your browser. Do not paste secrets into chat.
+    </p>
+
+    <div style="margin-top: var(--space-4); display:grid; gap: 10px;">
+      <div class="field">
+        <label class="muted" for="apiBase">API base URL</label>
+        <Input id="apiBase" placeholder="http://localhost:8000" />
+      </div>
+      <div class="field">
+        <label class="muted" for="apiKey">API key (optional)</label>
+        <Input id="apiKey" type="password" placeholder="X-API-Key" />
+      </div>
+      <div class="field">
+        <label class="muted" for="effectsMode">Effects</label>
+        <select id="effectsMode" class="select" style="width:auto;min-width:200px;">
+          <option value="full">Full</option>
+          <option value="reduced">Reduced (less blur/motion)</option>
+        </select>
+      </div>
+      <div class="cluster">
+        <Button id="saveSettings" variant="primary">Save</Button>
+        <Button id="clearKey">Clear key</Button>
+        <span class="muted" id="settingsStatus" role="status" aria-live="polite" style="min-height: 1em;"></span>
+      </div>
+    </div>
+  </Card>
+
+  <script type="module" is:inline>
+    import { getApiBaseUrl, getApiKey, setApiBaseUrl, setApiKey } from "/src/lib/storage.ts";
+    import { getEffects, setEffects } from "/src/lib/effects.ts";
+
+    const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+
+    const elApiBase = document.getElementById("apiBase");
+    const elApiKey = document.getElementById("apiKey");
+    const elEffectsMode = document.getElementById("effectsMode");
+    const elSettingsStatus = document.getElementById("settingsStatus");
+
+    if (!(elApiBase instanceof HTMLInputElement) || !(elApiKey instanceof HTMLInputElement)) {
+      // Page markup changed unexpectedly; avoid hard crash.
+      console.warn("Settings: required inputs not found");
+      // Nothing else we can do safely.
+      return;
+    }
+
+    // Init
+    elApiBase.value = getApiBaseUrl(DEFAULT_API_BASE);
+    elApiKey.value = getApiKey() || "";
+
+    const initialEffects = getEffects() || "full";
+    document.documentElement.setAttribute("data-effects", initialEffects);
+    if (elEffectsMode) elEffectsMode.value = initialEffects;
+
+    function flashStatus(text) {
+      if (!elSettingsStatus) return;
+      elSettingsStatus.textContent = text;
+      setTimeout(() => (elSettingsStatus.textContent = ""), 1200);
+    }
+
+    function normalizeBase(v) {
+      return String(v || "").trim().replace(/\/+$/, "");
+    }
+
+    function isValidHttpUrl(v) {
+      try {
+        const u = new URL(v);
+        return u.protocol === "http:" || u.protocol === "https:";
+      } catch {
+        return false;
+      }
+    }
+
+    document.getElementById("saveSettings")?.addEventListener("click", () => {
+      const base = normalizeBase(elApiBase.value);
+      if (base && !isValidHttpUrl(base)) {
+        flashStatus("Invalid API base URL.");
+        return;
+      }
+      setApiBaseUrl(base);
+      setApiKey(elApiKey.value);
+      setEffects(elEffectsMode && elEffectsMode.value === "reduced" ? "reduced" : "full");
+      flashStatus("Saved.");
+    });
+
+    document.getElementById("clearKey")?.addEventListener("click", () => {
+      setApiKey("");
+      elApiKey.value = "";
+      flashStatus("Key cleared.");
+    });
+  </script>
+</AppShell>
+

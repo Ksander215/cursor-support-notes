@@ -1,0 +1,168 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: sec_scanner_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio httpx
+      
+      - name: Run database migrations
+        env:
+          SEC_SCANNER_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sec_scanner_test
+        run: |
+          alembic upgrade head
+      
+      - name: Run tests
+        env:
+          SEC_SCANNER_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sec_scanner_test
+          SEC_SCANNER_REDIS_URL: redis://localhost:6379/0
+        run: |
+          pytest tests/ -v --cov=src --cov-report=xml --cov-report=html || true
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install linting tools
+        run: |
+          pip install ruff black mypy
+      
+      - name: Run Ruff
+        run: ruff check .
+      
+      - name: Check formatting
+        run: ruff format --check .
+      
+      - name: Run MyPy
+        run: mypy src/ --ignore-missing-imports || true
+
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install security tools
+        run: |
+          pip install bandit safety
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Run Bandit
+        run: bandit -r src/ -ll
+      
+      - name: Check dependencies
+        run: |
+          if [ -f requirements.txt ]; then
+            safety check --file requirements.txt
+          fi
+
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: services/frontend/package-lock.json
+      
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Install frontend dependencies
+        working-directory: services/frontend
+        run: npm ci
+      
+      - name: Build frontend
+        working-directory: services/frontend
+        run: npm run build
+      
+      - name: Verify build output
+        run: |
+          if [ -d "services/frontend/dist" ]; then
+            echo "✅ Frontend build successful"
+          else
+            echo "❌ Frontend build failed"
+            exit 1
+          fi

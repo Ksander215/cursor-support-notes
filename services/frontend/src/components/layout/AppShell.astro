@@ -1,0 +1,97 @@
+---
+import Base from "../../layouts/Base.astro";
+
+const {
+  title = "Dashboard · sec-scanner.pro",
+  description = "Unified security scanning dashboard",
+  active = "dashboard",
+} = Astro.props;
+---
+
+<Base title={title} description={description}>
+  <header class="container app-header">
+    <nav class="nav">
+      <a href="/" class="brand">
+        <span class="panel brand-icon" aria-hidden="true">
+          <span class="brand-dot"></span>
+        </span>
+        <span class="brand-name truncate">sec-scanner.pro</span>
+      </a>
+      <div class="nav-right">
+        <div class="nav-actions">
+          <a
+            class={`btn ${active === "dashboard" ? "btn-primary" : ""}`}
+            href="/app/dashboard"
+            aria-current={active === "dashboard" ? "page" : undefined}
+          >
+            Dashboard
+          </a>
+          <a
+            class={`btn ${active === "audits" ? "btn-primary" : ""}`}
+            href="/app/audits"
+            aria-current={active === "audits" ? "page" : undefined}
+          >
+            Audits
+          </a>
+          <a
+            class={`btn ${active === "settings" ? "btn-primary" : ""}`}
+            href="/app/settings"
+            aria-current={active === "settings" ? "page" : undefined}
+          >
+            Settings
+          </a>
+          <a class="btn" href="https://api.sec-scanner.pro/web-check/" target="_blank" rel="noreferrer">Web-Check</a>
+          <a class="btn" href="https://api.sec-scanner.pro/docs" target="_blank" rel="noreferrer">API Docs</a>
+          <button class="btn" data-theme-toggle type="button">Theme</button>
+        </div>
+
+        <details class="nav-menu">
+          <summary class="btn" aria-label="Open menu">Menu</summary>
+          <div class="panel nav-menu-panel">
+            <a
+              class={`btn ${active === "dashboard" ? "btn-primary" : "btn-ghost"}`}
+              href="/app/dashboard"
+              aria-current={active === "dashboard" ? "page" : undefined}
+            >
+              Dashboard
+            </a>
+            <a
+              class={`btn ${active === "audits" ? "btn-primary" : "btn-ghost"}`}
+              href="/app/audits"
+              aria-current={active === "audits" ? "page" : undefined}
+            >
+              Audits
+            </a>
+            <a
+              class={`btn ${active === "settings" ? "btn-primary" : "btn-ghost"}`}
+              href="/app/settings"
+              aria-current={active === "settings" ? "page" : undefined}
+            >
+              Settings
+            </a>
+            <a class="btn btn-ghost" href="https://api.sec-scanner.pro/web-check/" target="_blank" rel="noreferrer">Web-Check</a>
+            <a class="btn btn-ghost" href="https://api.sec-scanner.pro/docs" target="_blank" rel="noreferrer">API Docs</a>
+            <button class="btn btn-ghost" data-theme-toggle type="button">Theme</button>
+          </div>
+        </details>
+      </div>
+    </nav>
+  </header>
+
+  <main class="container fade-in main">
+    <slot />
+  </main>
+</Base>
+
+<script type="module" is:inline>
+  import { getTheme, setTheme } from "/src/lib/storage.ts";
+
+  document.querySelectorAll("[data-theme-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const cur = document.documentElement.getAttribute("data-theme") || getTheme() || "dark";
+      const next = cur === "dark" ? "light" : "dark";
+      setTheme(next);
+    });
+  });
+</script>
+

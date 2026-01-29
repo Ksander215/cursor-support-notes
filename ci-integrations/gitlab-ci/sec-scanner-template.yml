@@ -1,0 +1,99 @@
+# sec-scanner GitLab CI Template
+# Usage: Include this template in your .gitlab-ci.yml
+
+.sec-scanner-template:
+  image: curlimages/curl:latest
+  variables:
+    SEC_SCANNER_API_BASE_URL: "https://api.sec-scanner.pro"
+    SEC_SCANNER_MODE: "safe"
+    SEC_SCANNER_FAIL_ON: "critical"
+    SEC_SCANNER_WAIT: "true"
+    SEC_SCANNER_TIMEOUT: "300"
+  before_script:
+    - apk add --no-cache jq || apt-get update && apt-get install -y jq || yum install -y jq || true
+  script:
+    - |
+      set -e
+      
+      # Set target (default to project URL)
+      if [ -z "$SEC_SCANNER_TARGET" ]; then
+        SEC_SCANNER_TARGET="${CI_PROJECT_URL}"
+      fi
+      
+      # Prepare fail_on array
+      FAIL_ON_ARRAY=$(echo "$SEC_SCANNER_FAIL_ON" | tr ',' '\n' | sed 's/^/"/;s/$/"/' | tr '\n' ',' | sed 's/,$//')
+      FAIL_ON_JSON="[$FAIL_ON_ARRAY]"
+      
+      # Prepare CI context
+      CI_CONTEXT_JSON=$(cat <<EOF
+      {
+        "provider": "gitlab",
+        "repo": "${CI_PROJECT_PATH}",
+        "commit": "${CI_COMMIT_SHA}",
+        "branch": "${CI_COMMIT_REF_NAME}"
+      }
+      EOF
+      )
+      
+      if [ -n "$CI_MERGE_REQUEST_IID" ]; then
+        CI_CONTEXT_JSON=$(echo "$CI_CONTEXT_JSON" | jq ". + {\"pull_request\": \"$CI_MERGE_REQUEST_IID\"}")
+      fi
+      
+      # Make API request
+      RESPONSE=$(curl -s -X POST "${SEC_SCANNER_API_BASE_URL}/api/v1/ci/scan" \
+        -H "Content-Type: application/json" \
+        -H "X-API-Key: ${SEC_SCANNER_API_KEY}" \
+        -d "{
+          \"target\": \"${SEC_SCANNER_TARGET}\",
+          \"mode\": \"${SEC_SCANNER_MODE}\",
+          \"fail_on\": ${FAIL_ON_JSON},
+          \"wait\": ${SEC_SCANNER_WAIT},
+          \"timeout\": ${SEC_SCANNER_TIMEOUT},
+          \"ci_context\": ${CI_CONTEXT_JSON}
+        }")
+      
+      # Extract results
+      AUDIT_ID=$(echo "$RESPONSE" | jq -r '.audit_id // empty')
+      PASSED=$(echo "$RESPONSE" | jq -r '.passed // false')
+      OVERALL_SCORE=$(echo "$RESPONSE" | jq -r '.overall_score // empty')
+      RISK_LEVEL=$(echo "$RESPONSE" | jq -r '.risk_level // empty')
+      REPORT_URL=$(echo "$RESPONSE" | jq -r '.report_url // empty')
+      FAILURE_REASON=$(echo "$RESPONSE" | jq -r '.failure_reason // empty')
+      
+      # Display results
+      echo "=========================================="
+      echo "Security Scan Results"
+      echo "=========================================="
+      echo "Audit ID: ${AUDIT_ID}"
+      echo "Overall Score: ${OVERALL_SCORE}"
+      echo "Risk Level: ${RISK_LEVEL}"
+      echo "Report URL: ${REPORT_URL}"
+      if [ -n "$FAILURE_REASON" ]; then
+        echo "Failure Reason: ${FAILURE_REASON}"
+      fi
+      echo "=========================================="
+      
+      # Export variables for other jobs
+      echo "SEC_SCANNER_AUDIT_ID=${AUDIT_ID}" >> .sec-scanner-vars
+      echo "SEC_SCANNER_PASSED=${PASSED}" >> .sec-scanner-vars
+      echo "SEC_SCANNER_OVERALL_SCORE=${OVERALL_SCORE}" >> .sec-scanner-vars
+      echo "SEC_SCANNER_RISK_LEVEL=${RISK_LEVEL}" >> .sec-scanner-vars
+      echo "SEC_SCANNER_REPORT_URL=${REPORT_URL}" >> .sec-scanner-vars
+      
+      # Fail if scan didn't pass
+      if [ "$PASSED" != "true" ]; then
+        echo "ERROR: Security scan failed: ${FAILURE_REASON:-Unknown reason}"
+        exit 1
+      fi
+  artifacts:
+    reports:
+      # Store scan results as artifact
+      dotenv: .sec-scanner-vars
+    expire_in: 1 week
+
+security_scan:
+  extends: .sec-scanner-template
+  stage: test
+  only:
+    - branches
+    - merge_requests

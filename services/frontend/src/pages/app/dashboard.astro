@@ -1,0 +1,347 @@
+---
+import AppShell from "../../components/layout/AppShell.astro";
+import Button from "../../components/ui/Button.astro";
+import Card from "../../components/ui/Card.astro";
+import EmptyState from "../../components/ui/EmptyState.astro";
+import ErrorState from "../../components/ui/ErrorState.astro";
+import Input from "../../components/ui/Input.astro";
+import QuotaDisplay from "../../components/QuotaDisplay.astro";
+---
+
+<AppShell title="Dashboard · sec-scanner.pro" description="Audits dashboard" active="dashboard">
+  <Card class="section">
+    <div class="row">
+      <div style="min-width:min(520px, 100%);">
+        <h1 class="h2">Dashboard</h1>
+        <p class="muted" style="margin: var(--space-2) 0 0;">
+          Start audits, see recent activity, and keep a quick pulse on outcomes.
+        </p>
+      </div>
+      <div class="row-right">
+        <span class="kbd" id="apiBaseLabel"></span>
+        <Button id="refreshBtn" variant="ghost">Refresh</Button>
+      </div>
+    </div>
+
+    <div class="stats" aria-label="Audit summary">
+      <div class="stat">
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-label">Total (last 20)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statCompleted">—</div>
+        <div class="stat-label">Completed</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statRunning">—</div>
+        <div class="stat-label">Queued / Running</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statFailed">—</div>
+        <div class="stat-label">Failed</div>
+      </div>
+    </div>
+
+    <hr class="hr" style="margin: var(--space-4) 0;" />
+
+    <QuotaDisplay client:load />
+
+    <form id="createForm" class="cluster" style="align-items: stretch;">
+      <Input id="target" name="target" placeholder="example.com" required class="input" style="flex:1;min-width:220px;" />
+      <select id="mode" name="mode" class="select" style="width:auto;min-width:140px;">
+        <option value="safe">safe</option>
+        <option value="full">full</option>
+      </select>
+      <Button variant="primary" type="submit">Start audit</Button>
+      <span class="muted" id="createStatus" role="status" aria-live="polite" style="min-height: 1em;"></span>
+    </form>
+  </Card>
+
+  <Card class="section">
+    <div class="row">
+      <h2 class="h2">Recent</h2>
+    </div>
+    <div id="errorBox" style="margin-top: var(--space-3); display:none;">
+      <ErrorState title="Failed to load audits" messageId="errorText" retryId="retryRecentBtn" retryLabel="Retry" />
+    </div>
+    <div id="emptyBox" style="margin-top: var(--space-3); display:none;">
+      <EmptyState title="No audits yet" description="Start one above." />
+    </div>
+    <div id="list" style="margin-top: var(--space-3); display:grid; gap: 10px;"></div>
+  </Card>
+
+  <script type="module" is:inline>
+    import { makeClient } from "/src/lib/api.ts";
+    import { getApiBaseUrl, getApiKey } from "/src/lib/storage.ts";
+
+    const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+
+    const elList = document.getElementById("list");
+    const elError = document.getElementById("errorBox");
+    const elErrorText = document.getElementById("errorText");
+    const elApiBaseLabel = document.getElementById("apiBaseLabel");
+    const elCreateStatus = document.getElementById("createStatus");
+
+    const elStatTotal = document.getElementById("statTotal");
+    const elStatCompleted = document.getElementById("statCompleted");
+    const elStatRunning = document.getElementById("statRunning");
+    const elStatFailed = document.getElementById("statFailed");
+
+    function currentApiBase() {
+      return getApiBaseUrl(DEFAULT_API_BASE);
+    }
+    function currentApiKey() {
+      return getApiKey();
+    }
+    function client() {
+      return makeClient(currentApiBase());
+    }
+
+    function setError(msg) {
+      if (!elError) return;
+      if (!msg) {
+        elError.style.display = "none";
+        if (elErrorText) elErrorText.textContent = "";
+        return;
+      }
+      elError.style.display = "block";
+      if (elErrorText) elErrorText.textContent = msg;
+    }
+
+    function setEmpty(isEmpty) {
+      const box = document.getElementById("emptyBox");
+      if (!box) return;
+      box.style.display = isEmpty ? "block" : "none";
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderRow(a) {
+      const created = a.created_at ? new Date(a.created_at).toLocaleString() : "";
+      const href = `/app/audits?id=${encodeURIComponent(String(a.id || ""))}`;
+      return `
+        <a class="panel" href="${href}" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+            <div style="min-width:0;">
+              <div class="truncate" style="font-weight:650;letter-spacing:-0.01em;">
+                ${escapeHtml(a.target)} <span class="muted">(${escapeHtml(a.mode)})</span>
+              </div>
+              <div class="muted" style="margin-top:4px;font-size:13px;">${escapeHtml(created)} · id=${escapeHtml(a.id)}</div>
+            </div>
+            <div class="row-right">
+              <span class="badge ${a.status === "completed" ? "badge-ok" : a.status === "failed" ? "badge-bad" : "badge-warn"}">${escapeHtml(a.status)}</span>
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    function updateStats(items) {
+      const total = items.length;
+      const completed = items.filter((x) => x.status === "completed").length;
+      const failed = items.filter((x) => x.status === "failed").length;
+      const running = Math.max(0, total - completed - failed);
+
+      if (elStatTotal) elStatTotal.textContent = String(total);
+      if (elStatCompleted) elStatCompleted.textContent = String(completed);
+      if (elStatFailed) elStatFailed.textContent = String(failed);
+      if (elStatRunning) elStatRunning.textContent = String(running);
+    }
+
+    function setStatsLoading() {
+      if (elStatTotal) elStatTotal.textContent = "…";
+      if (elStatCompleted) elStatCompleted.textContent = "…";
+      if (elStatFailed) elStatFailed.textContent = "…";
+      if (elStatRunning) elStatRunning.textContent = "…";
+    }
+
+    function listSkeleton() {
+      return `
+        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
+          <div class="skeleton skeleton-text" style="width:70%;"></div>
+          <div class="skeleton skeleton-text" style="width:40%;margin-top:10px;"></div>
+        </div>
+        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
+          <div class="skeleton skeleton-text" style="width:64%;"></div>
+          <div class="skeleton skeleton-text" style="width:36%;margin-top:10px;"></div>
+        </div>
+        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
+          <div class="skeleton skeleton-text" style="width:68%;"></div>
+          <div class="skeleton skeleton-text" style="width:34%;margin-top:10px;"></div>
+        </div>
+      `;
+    }
+
+    function renderQuota(quota) {
+      const content = document.getElementById("quotaContent");
+      const error = document.getElementById("quotaError");
+      const loading = document.getElementById("quotaLoading");
+
+      if (!quota) {
+        if (content) content.style.display = "none";
+        if (loading) loading.style.display = "none";
+        if (error) error.style.display = "block";
+        return;
+      }
+
+      if (error) error.style.display = "none";
+      if (loading) loading.style.display = "none";
+      if (content) content.style.display = "block";
+
+      // Plan info
+      const planNameEl = document.getElementById("quotaPlanName");
+      const orgNameEl = document.getElementById("quotaOrgName");
+      const planCodeEl = document.getElementById("quotaPlanCode");
+      if (planNameEl) planNameEl.textContent = quota.plan_name || "—";
+      if (orgNameEl) orgNameEl.textContent = quota.org_name || "—";
+      if (planCodeEl) planCodeEl.textContent = quota.plan_code || "—";
+
+      // Requests
+      const requestsUsed = quota.usage?.requests || 0;
+      const requestsLimit = quota.limits?.requests_per_minute;
+      const requestsUsedEl = document.getElementById("quotaRequestsUsed");
+      const requestsLimitEl = document.getElementById("quotaRequestsLimit");
+      const requestsBarEl = document.getElementById("quotaRequestsBar");
+
+      if (requestsUsedEl) requestsUsedEl.textContent = String(requestsUsed);
+      if (requestsLimitEl) {
+        requestsLimitEl.textContent = requestsLimit != null ? ` / ${requestsLimit}` : " / unlimited";
+      }
+      if (requestsBarEl && requestsLimit != null && requestsLimit > 0) {
+        const percentage = Math.min(100, (requestsUsed / requestsLimit) * 100);
+        requestsBarEl.style.width = `${percentage}%`;
+        // Color based on usage
+        if (percentage >= 90) {
+          requestsBarEl.style.background = "var(--error)";
+        } else if (percentage >= 75) {
+          requestsBarEl.style.background = "var(--warning)";
+        } else {
+          requestsBarEl.style.background = "var(--accent)";
+        }
+      } else if (requestsBarEl) {
+        requestsBarEl.style.width = "0%";
+      }
+
+      // Audits
+      const auditsUsed = quota.usage?.audits_created || 0;
+      const auditsLimit = quota.limits?.monthly_audits_quota;
+      const auditsUsedEl = document.getElementById("quotaAuditsUsed");
+      const auditsLimitEl = document.getElementById("quotaAuditsLimit");
+      const auditsBarEl = document.getElementById("quotaAuditsBar");
+
+      if (auditsUsedEl) auditsUsedEl.textContent = String(auditsUsed);
+      if (auditsLimitEl) {
+        auditsLimitEl.textContent = auditsLimit != null ? ` / ${auditsLimit}` : " / unlimited";
+      }
+      if (auditsBarEl && auditsLimit != null && auditsLimit > 0) {
+        const percentage = Math.min(100, (auditsUsed / auditsLimit) * 100);
+        auditsBarEl.style.width = `${percentage}%`;
+        // Color based on usage
+        if (percentage >= 90) {
+          auditsBarEl.style.background = "var(--error)";
+        } else if (percentage >= 75) {
+          auditsBarEl.style.background = "var(--warning)";
+        } else {
+          auditsBarEl.style.background = "var(--accent)";
+        }
+      } else if (auditsBarEl) {
+        auditsBarEl.style.width = "0%";
+      }
+
+      // Concurrency
+      const concurrencyLimit = quota.limits?.concurrency_limit;
+      const concurrencyEl = document.getElementById("quotaConcurrency");
+      const concurrencyLimitEl = document.getElementById("quotaConcurrencyLimit");
+      if (concurrencyEl) {
+        concurrencyEl.style.display = concurrencyLimit != null ? "block" : "none";
+      }
+      if (concurrencyLimitEl) {
+        concurrencyLimitEl.textContent = concurrencyLimit != null ? String(concurrencyLimit) : "—";
+      }
+    }
+
+    function showQuotaLoading() {
+      const content = document.getElementById("quotaContent");
+      const error = document.getElementById("quotaError");
+      const loading = document.getElementById("quotaLoading");
+      if (content) content.style.display = "none";
+      if (error) error.style.display = "none";
+      if (loading) loading.style.display = "block";
+    }
+
+    async function refreshQuota() {
+      showQuotaLoading();
+      try {
+        const quota = await client().getQuota(currentApiKey());
+        renderQuota(quota);
+      } catch (e) {
+        // Quota endpoint returns 404 for static keys or unauthenticated requests
+        // This is expected behavior, so we silently handle it
+        renderQuota(null);
+      }
+    }
+
+    async function refresh() {
+      setError("");
+      setEmpty(false);
+      if (!elList) return;
+      setStatsLoading();
+      elList.innerHTML = listSkeleton();
+      if (elApiBaseLabel) elApiBaseLabel.textContent = currentApiBase();
+      try {
+        const data = await client().listAudits(20, currentApiKey());
+        const items = (data && data.items) ? data.items : [];
+        updateStats(items);
+        if (items.length === 0) {
+          elList.innerHTML = "";
+          setEmpty(true);
+          return;
+        }
+        elList.innerHTML = items.map(renderRow).join("");
+      } catch (e) {
+        if (elList) elList.innerHTML = "";
+        updateStats([]);
+        setError(e?.message || String(e));
+      }
+      // Refresh quota after audits
+      await refreshQuota();
+    }
+
+    document.getElementById("refreshBtn")?.addEventListener("click", () => {
+      refresh();
+    });
+    document.getElementById("retryRecentBtn")?.addEventListener("click", refresh);
+    document.getElementById("createForm")?.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      elCreateStatus.textContent = "";
+      setError("");
+
+      const targetEl = document.getElementById("target");
+      const modeEl = document.getElementById("mode");
+      const target = targetEl instanceof HTMLInputElement ? targetEl.value.trim() : "";
+      const mode = modeEl instanceof HTMLSelectElement ? modeEl.value : "safe";
+      if (!target) return;
+
+      try {
+        elCreateStatus.textContent = "Starting…";
+        await client().createAudit({ target, mode }, currentApiKey());
+        elCreateStatus.textContent = "Queued.";
+        await refresh();
+      } catch (e) {
+        elCreateStatus.textContent = "";
+        setError(e?.message || String(e));
+      }
+    });
+
+    refresh();
+    refreshQuota();
+  </script>
+</AppShell>
+

@@ -1,0 +1,44 @@
+---
+const {
+  href,
+  target,
+  rel,
+  variant = "secondary",
+  size = "md",
+  class: className = "",
+  type = "button",
+  disabled = false,
+  id,
+} = Astro.props as {
+  href?: string;
+  target?: string;
+  rel?: string;
+  variant?: "primary" | "secondary" | "ghost";
+  size?: "sm" | "md";
+  class?: string;
+  type?: "button" | "submit" | "reset";
+  disabled?: boolean;
+  id?: string;
+};
+
+const classes = [
+  "btn",
+  variant === "primary" ? "btn-primary" : "",
+  variant === "ghost" ? "btn-ghost" : "",
+  size === "sm" ? "btn-sm" : "",
+  className,
+]
+  .filter(Boolean)
+  .join(" ");
+---
+
+{href ? (
+  <a id={id} class={classes} href={href} target={target} rel={rel}>
+    <slot />
+  </a>
+) : (
+  <button id={id} class={classes} type={type} disabled={disabled}>
+    <slot />
+  </button>
+)}
+

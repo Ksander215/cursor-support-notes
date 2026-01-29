@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.mcp
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+data/*.sqlite
+
+# Logs
+*.log
+logs/
+
+# MCP Configuration (if contains tokens)
+.cursor/mcp.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Backup files
+*.bak
+*.backup
+*.tar.gz
+sec-scanner-release.tar.gz
+
+# Node modules (for frontend)
+node_modules/
+services/frontend/node_modules/
+services/web-check/node_modules/
+
+# Build outputs
+dist/
+build/
+*.dist/
+
+# Temporary files
+*.tmp
+*.temp

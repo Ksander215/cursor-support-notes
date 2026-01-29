@@ -1,0 +1,269 @@
+---
+// ProgressIndicator component for displaying scan progress with detailed steps
+---
+
+<div id="progressContainer" class="progress-container">
+  <div class="progress-header">
+    <div class="progress-title">
+      <span>Scan Progress</span>
+      <span id="progressPercentage" class="progress-percentage">0%</span>
+    </div>
+    <div id="progressBar" class="progress-bar">
+      <div id="progressBarFill" class="progress-bar-fill" style="width: 0%;"></div>
+    </div>
+  </div>
+  
+  <div id="progressSteps" class="progress-steps">
+    <!-- Steps will be rendered here -->
+  </div>
+</div>
+
+<style>
+  .progress-container {
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--surface-1);
+    border: 1px solid var(--border-1);
+  }
+  
+  .progress-header {
+    margin-bottom: var(--space-4);
+  }
+  
+  .progress-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+    font-size: var(--text-md);
+  }
+  
+  .progress-percentage {
+    color: var(--text-2);
+    font-size: var(--text-sm);
+  }
+  
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--surface-2);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+  }
+  
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-accent-1), var(--color-accent-2));
+    border-radius: var(--radius-pill);
+    transition: width 0.3s ease;
+  }
+  
+  .progress-steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  
+  .progress-step {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    border: 1px solid var(--border-1);
+    transition: all 0.2s ease;
+  }
+  
+  .progress-step.running {
+    border-color: var(--color-accent-1);
+    background: var(--surface-1);
+  }
+  
+  .progress-step.completed {
+    border-color: var(--color-ok);
+    opacity: 0.8;
+  }
+  
+  .progress-step.failed {
+    border-color: var(--color-bad);
+    background: rgba(239, 68, 68, 0.1);
+  }
+  
+  .step-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  
+  .step-icon.pending {
+    background: var(--surface-2);
+    color: var(--text-3);
+  }
+  
+  .step-icon.running {
+    background: var(--color-accent-1);
+    color: var(--bg);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  
+  .step-icon.completed {
+    background: var(--color-ok);
+    color: white;
+  }
+  
+  .step-icon.failed {
+    background: var(--color-bad);
+    color: white;
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+  
+  .step-content {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .step-name {
+    font-weight: 600;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-1);
+    text-transform: capitalize;
+  }
+  
+  .step-message {
+    font-size: var(--text-xs);
+    color: var(--text-2);
+    margin-top: var(--space-1);
+  }
+  
+  .step-error {
+    font-size: var(--text-xs);
+    color: var(--color-bad);
+    margin-top: var(--space-1);
+  }
+  
+  .step-progress {
+    width: 100%;
+    height: 4px;
+    background: var(--surface-2);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    margin-top: var(--space-2);
+  }
+  
+  .step-progress-fill {
+    height: 100%;
+    background: var(--color-accent-1);
+    border-radius: var(--radius-pill);
+    transition: width 0.3s ease;
+  }
+</style>
+
+<script>
+  export function renderProgress(containerId: string, progressData: {
+    audit_id: string;
+    overall_status: string;
+    steps: Array<{
+      step_name: string;
+      step_status: string;
+      step_progress?: number | null;
+      step_message?: string | null;
+      step_error?: string | null;
+      started_at?: string | null;
+      completed_at?: string | null;
+    }>;
+    overall_progress: number;
+  }) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const progressPercentage = document.getElementById("progressPercentage");
+    const progressBarFill = document.getElementById("progressBarFill");
+    const progressSteps = document.getElementById("progressSteps");
+    
+    if (!progressPercentage || !progressBarFill || !progressSteps) return;
+    
+    // Update overall progress
+    progressPercentage.textContent = `${progressData.overall_progress}%`;
+    progressBarFill.style.width = `${progressData.overall_progress}%`;
+    
+    // Render steps
+    progressSteps.innerHTML = progressData.steps.map(step => {
+      const status = step.step_status;
+      const stepProgress = step.step_progress ?? 0;
+      
+      let icon = "○";
+      if (status === "completed") icon = "✓";
+      else if (status === "failed") icon = "✗";
+      else if (status === "running") icon = "⟳";
+      
+      const stepName = step.step_name.replace(/_/g, " ");
+      const message = step.step_message || "";
+      const error = step.step_error || "";
+      
+      return `
+        <div class="progress-step ${status}">
+          <div class="step-icon ${status}">${icon}</div>
+          <div class="step-content">
+            <div class="step-name">${escapeHtml(stepName)}</div>
+            ${message ? `<div class="step-message">${escapeHtml(message)}</div>` : ""}
+            ${error ? `<div class="step-error">Error: ${escapeHtml(error)}</div>` : ""}
+            ${status === "running" && stepProgress > 0 ? `
+              <div class="step-progress">
+                <div class="step-progress-fill" style="width: ${stepProgress}%;"></div>
+              </div>
+            ` : ""}
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+  
+  function escapeHtml(text: string): string {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  export function showProgressLoading(containerId: string) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    container.innerHTML = `
+      <div class="progress-container">
+        <div class="progress-header">
+          <div class="progress-title">
+            <span>Scan Progress</span>
+            <span class="progress-percentage">Loading...</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+        <div class="progress-steps">
+          <div class="progress-step pending">
+            <div class="step-icon pending">○</div>
+            <div class="step-content">
+              <div class="step-name">Loading progress...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+</script>

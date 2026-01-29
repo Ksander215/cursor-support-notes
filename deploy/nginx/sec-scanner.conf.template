@@ -1,0 +1,135 @@
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  '' close;
+}
+
+# Basic hardening (works in http{} context via sites-enabled include)
+server_tokens off;
+
+# Global request limits (tune if you see false positives)
+limit_req_status 429;
+limit_req_zone $binary_remote_addr zone=sec_scanner_api_per_ip:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=sec_scanner_webcheck_per_ip:10m rate=5r/s;
+limit_conn_zone $binary_remote_addr zone=sec_scanner_conn_per_ip:10m;
+
+# Timeouts / sizes (defense against slow clients + stuck upstreams)
+client_max_body_size 1m;
+client_body_timeout 10s;
+client_header_timeout 10s;
+keepalive_timeout 65s;
+send_timeout 10s;
+
+proxy_http_version 1.1;
+proxy_connect_timeout 5s;
+proxy_send_timeout 30s;
+proxy_read_timeout 30s;
+
+proxy_hide_header X-Powered-By;
+
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${ROOT_DOMAIN};
+
+  # Root domain serves the unified UI (frontend container, localhost-only port)
+  location / {
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    proxy_pass http://127.0.0.1:3001;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+  }
+
+  # Block dotfiles except ACME challenges
+  location ~ /\.(?!well-known) {
+    return 404;
+  }
+}
+
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${API_DOMAIN};
+
+  # Security headers (keep minimal to not break Swagger / Web-Check UI)
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header X-Frame-Options "DENY" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+  # Block dotfiles except ACME challenges
+  location ~ /\.(?!well-known) {
+    return 404;
+  }
+
+  # Health endpoint (no rate limit, simplest path)
+  location = /healthz {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  # API: rate limit + method restriction
+  location ^~ /api/v1/ {
+    limit_req zone=sec_scanner_api_per_ip burst=40 nodelay;
+    limit_conn sec_scanner_conn_per_ip 40;
+    if ($request_method !~ ^(GET|POST|HEAD|OPTIONS)$) { return 405; }
+
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+  }
+
+  # Web-Check API is SSRF-sensitive; keep stricter limits
+  location ^~ /web-check/api {
+    limit_req zone=sec_scanner_webcheck_per_ip burst=20 nodelay;
+    limit_conn sec_scanner_conn_per_ip 20;
+    if ($request_method !~ ^(GET|HEAD|OPTIONS)$) { return 405; }
+
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 60s;
+  }
+
+  # Web-Check UI (static + GET-only)
+  location ^~ /web-check/ {
+    limit_req zone=sec_scanner_webcheck_per_ip burst=30 nodelay;
+    limit_conn sec_scanner_conn_per_ip 30;
+    if ($request_method !~ ^(GET|HEAD|OPTIONS)$) { return 405; }
+
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location / {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+  }
+}
+

@@ -1,0 +1,33 @@
+---
+type Tone = "neutral" | "info" | "ok" | "warn" | "bad";
+type Role = "status" | "alert";
+
+const {
+  tone = "neutral",
+  title,
+  role,
+  class: className = "",
+  id,
+} = Astro.props as {
+  tone?: Tone;
+  title?: string;
+  role?: Role;
+  class?: string;
+  id?: string;
+};
+
+const computedRole: Role =
+  role ?? (tone === "bad" || tone === "warn" ? "alert" : "status");
+
+const classes = ["alert", `alert-${tone}`, className]
+  .filter(Boolean)
+  .join(" ");
+---
+
+<div id={id} class={classes} role={computedRole}>
+  {title ? <div class="alert-title">{title}</div> : null}
+  <div class="alert-body">
+    <slot />
+  </div>
+</div>
+

@@ -1,0 +1,171 @@
+---
+// QuotaDisplay component - shows quota usage and limits
+---
+
+<div id="quotaContainer" class="quota-display">
+  <div id="quotaError" style="display: none; margin-top: var(--space-3);">
+    <div class="muted" style="font-size: 13px;">Quota information not available (requires organization API key)</div>
+  </div>
+  <div id="quotaContent" style="display: none;">
+    <div class="row" style="margin-bottom: var(--space-3);">
+      <div>
+        <h3 class="h3" id="quotaPlanName">—</h3>
+        <div class="muted" style="font-size: 13px; margin-top: 4px;">
+          <span id="quotaOrgName">—</span> · Plan: <span id="quotaPlanCode">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="quota-metrics" style="display: grid; gap: var(--space-3);">
+      <div class="quota-metric">
+        <div class="row" style="justify-content: space-between; margin-bottom: var(--space-1);">
+          <span class="muted" style="font-size: 13px;">Requests (this month)</span>
+          <span class="muted" style="font-size: 13px;">
+            <span id="quotaRequestsUsed">0</span>
+            <span id="quotaRequestsLimit"> / —</span>
+          </span>
+        </div>
+        <div class="progress-bar" style="height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden;">
+          <div id="quotaRequestsBar" style="height: 100%; background: var(--accent); width: 0%; transition: width 0.3s;"></div>
+        </div>
+      </div>
+
+      <div class="quota-metric">
+        <div class="row" style="justify-content: space-between; margin-bottom: var(--space-1);">
+          <span class="muted" style="font-size: 13px;">Audits created (this month)</span>
+          <span class="muted" style="font-size: 13px;">
+            <span id="quotaAuditsUsed">0</span>
+            <span id="quotaAuditsLimit"> / —</span>
+          </span>
+        </div>
+        <div class="progress-bar" style="height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden;">
+          <div id="quotaAuditsBar" style="height: 100%; background: var(--accent); width: 0%; transition: width 0.3s;"></div>
+        </div>
+      </div>
+
+      <div class="quota-metric" id="quotaConcurrency" style="display: none;">
+        <div class="row" style="justify-content: space-between;">
+          <span class="muted" style="font-size: 13px;">Concurrency limit</span>
+          <span class="muted" style="font-size: 13px;"><span id="quotaConcurrencyLimit">—</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="quotaLoading" style="display: none;">
+    <div class="skeleton skeleton-text" style="width: 60%; margin-bottom: var(--space-2);"></div>
+    <div class="skeleton skeleton-text" style="width: 40%; margin-bottom: var(--space-3);"></div>
+    <div class="skeleton skeleton-text" style="width: 80%; margin-bottom: var(--space-1);"></div>
+    <div class="skeleton" style="height: 8px; border-radius: 4px; margin-bottom: var(--space-3);"></div>
+    <div class="skeleton skeleton-text" style="width: 70%; margin-bottom: var(--space-1);"></div>
+    <div class="skeleton" style="height: 8px; border-radius: 4px;"></div>
+  </div>
+</div>
+
+<script>
+  export function renderQuota(quota) {
+    const container = document.getElementById("quotaContainer");
+    const content = document.getElementById("quotaContent");
+    const error = document.getElementById("quotaError");
+    const loading = document.getElementById("quotaLoading");
+
+    if (!quota) {
+      if (content) content.style.display = "none";
+      if (loading) loading.style.display = "none";
+      if (error) error.style.display = "block";
+      return;
+    }
+
+    if (error) error.style.display = "none";
+    if (loading) loading.style.display = "none";
+    if (content) content.style.display = "block";
+
+    // Plan info
+    const planNameEl = document.getElementById("quotaPlanName");
+    const orgNameEl = document.getElementById("quotaOrgName");
+    const planCodeEl = document.getElementById("quotaPlanCode");
+    if (planNameEl) planNameEl.textContent = quota.plan_name || "—";
+    if (orgNameEl) orgNameEl.textContent = quota.org_name || "—";
+    if (planCodeEl) planCodeEl.textContent = quota.plan_code || "—";
+
+    // Requests
+    const requestsUsed = quota.usage?.requests || 0;
+    const requestsLimit = quota.limits?.requests_per_minute;
+    const requestsUsedEl = document.getElementById("quotaRequestsUsed");
+    const requestsLimitEl = document.getElementById("quotaRequestsLimit");
+    const requestsBarEl = document.getElementById("quotaRequestsBar");
+
+    if (requestsUsedEl) requestsUsedEl.textContent = String(requestsUsed);
+    if (requestsLimitEl) {
+      requestsLimitEl.textContent = requestsLimit != null ? ` / ${requestsLimit}` : " / unlimited";
+    }
+    if (requestsBarEl && requestsLimit != null && requestsLimit > 0) {
+      const percentage = Math.min(100, (requestsUsed / requestsLimit) * 100);
+      requestsBarEl.style.width = `${percentage}%`;
+      // Color based on usage
+      if (percentage >= 90) {
+        requestsBarEl.style.background = "var(--error)";
+      } else if (percentage >= 75) {
+        requestsBarEl.style.background = "var(--warning)";
+      } else {
+        requestsBarEl.style.background = "var(--accent)";
+      }
+    } else if (requestsBarEl) {
+      requestsBarEl.style.width = "0%";
+    }
+
+    // Audits
+    const auditsUsed = quota.usage?.audits_created || 0;
+    const auditsLimit = quota.limits?.monthly_audits_quota;
+    const auditsUsedEl = document.getElementById("quotaAuditsUsed");
+    const auditsLimitEl = document.getElementById("quotaAuditsLimit");
+    const auditsBarEl = document.getElementById("quotaAuditsBar");
+
+    if (auditsUsedEl) auditsUsedEl.textContent = String(auditsUsed);
+    if (auditsLimitEl) {
+      auditsLimitEl.textContent = auditsLimit != null ? ` / ${auditsLimit}` : " / unlimited";
+    }
+    if (auditsBarEl && auditsLimit != null && auditsLimit > 0) {
+      const percentage = Math.min(100, (auditsUsed / auditsLimit) * 100);
+      auditsBarEl.style.width = `${percentage}%`;
+      // Color based on usage
+      if (percentage >= 90) {
+        auditsBarEl.style.background = "var(--error)";
+      } else if (percentage >= 75) {
+        auditsBarEl.style.background = "var(--warning)";
+      } else {
+        auditsBarEl.style.background = "var(--accent)";
+      }
+    } else if (auditsBarEl) {
+      auditsBarEl.style.width = "0%";
+    }
+
+    // Concurrency
+    const concurrencyLimit = quota.limits?.concurrency_limit;
+    const concurrencyEl = document.getElementById("quotaConcurrency");
+    const concurrencyLimitEl = document.getElementById("quotaConcurrencyLimit");
+    if (concurrencyEl) {
+      concurrencyEl.style.display = concurrencyLimit != null ? "block" : "none";
+    }
+    if (concurrencyLimitEl) {
+      concurrencyLimitEl.textContent = concurrencyLimit != null ? String(concurrencyLimit) : "—";
+    }
+  }
+
+  export function showQuotaLoading() {
+    const content = document.getElementById("quotaContent");
+    const error = document.getElementById("quotaError");
+    const loading = document.getElementById("quotaLoading");
+    if (content) content.style.display = "none";
+    if (error) error.style.display = "none";
+    if (loading) loading.style.display = "block";
+  }
+</script>
+
+<style>
+  .quota-display {
+    width: 100%;
+  }
+  .quota-metrics {
+    margin-top: var(--space-2);
+  }
+</style>

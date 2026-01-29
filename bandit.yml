@@ -1,0 +1,35 @@
+# Bandit security linter configuration
+
+# Tests to skip
+skips:
+  - B101  # assert_used
+  - B601  # shell_injection_subprocess
+
+# Exclude paths
+exclude_dirs:
+  - tests
+  - venv
+  - .venv
+  - node_modules
+  - .git
+  - .astro
+  - dist
+  - build
+
+# Severity levels to report
+severity:
+  - low
+  - medium
+  - high
+
+# Confidence levels to report
+confidence:
+  - low
+  - medium
+  - high
+
+# Aggressive mode (more checks)
+aggressive: false
+
+# Number of processes to use
+processes: 1

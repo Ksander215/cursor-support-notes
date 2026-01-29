@@ -1,0 +1,180 @@
+services:
+  db:
+    image: ${DOCKER_LIBRARY_REGISTRY:-docker.io/library}/postgres:15-alpine
+    environment:
+      POSTGRES_DB: sec_scanner
+      POSTGRES_USER: sec_scanner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sec_scanner}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # Expose PostgreSQL on localhost for MCP connections
+      - "127.0.0.1:5432:5432"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sec_scanner -d sec_scanner"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: ${DOCKER_LIBRARY_REGISTRY:-docker.io/library}/redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      # Expose Redis on localhost for MCP connections
+      - "127.0.0.1:6379:6379"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_LIBRARY_REGISTRY: ${DOCKER_LIBRARY_REGISTRY:-docker.io/library}
+    environment:
+      APP_NAME: sec-scanner.pro API
+      WEB_CHECK_BASE_URL: http://web-check:3000
+      SEC_SCANNER_DATABASE_URL: postgresql+psycopg://sec_scanner:${POSTGRES_PASSWORD:-sec_scanner}@db:5432/sec_scanner
+      SEC_SCANNER_REDIS_URL: redis://redis:6379/0
+      SEC_SCANNER_AUTO_CREATE_SCHEMA: "false"
+      LOG_LEVEL: INFO
+      # Security toggles (safe defaults; set explicitly in .env.production)
+      # If set, require X-API-Key header for /api/v1/*
+      SEC_SCANNER_API_KEY: ${SEC_SCANNER_API_KEY:-}
+      # Block private/loopback/link-local targets unless explicitly allowed
+      SEC_SCANNER_ALLOW_PRIVATE_TARGETS: ${SEC_SCANNER_ALLOW_PRIVATE_TARGETS:-false}
+    ports:
+      # expose only locally; public access via Nginx :80/:443
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web-check:
+        condition: service_started
+    command: ["/bin/bash", "/app/scripts/start_api.sh"]
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz').read()\""]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    networks:
+      - app
+      - data
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_LIBRARY_REGISTRY: ${DOCKER_LIBRARY_REGISTRY:-docker.io/library}
+    environment:
+      SEC_SCANNER_DATABASE_URL: postgresql+psycopg://sec_scanner:${POSTGRES_PASSWORD:-sec_scanner}@db:5432/sec_scanner
+      SEC_SCANNER_REDIS_URL: redis://redis:6379/0
+      SEC_SCANNER_AUTO_CREATE_SCHEMA: "false"
+      LOG_LEVEL: INFO
+      SEC_SCANNER_ALLOW_PRIVATE_TARGETS: ${SEC_SCANNER_ALLOW_PRIVATE_TARGETS:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["celery", "-A", "src.sec_scanner.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - app
+      - data
+    restart: unless-stopped
+
+  web-check:
+    build:
+      context: ./services/web-check
+      dockerfile: Dockerfile
+      args:
+        DOCKER_LIBRARY_REGISTRY: ${DOCKER_LIBRARY_REGISTRY:-docker.io/library}
+    environment:
+      # Don't advertise an open CORS policy; UI is same-origin under /web-check/
+      API_CORS_ORIGIN: ${WC_API_CORS_ORIGIN:-}
+      API_ENABLE_RATE_LIMIT: "true"
+      API_TIMEOUT_LIMIT: ${WC_API_TIMEOUT_LIMIT:-20000}
+      WC_ALLOW_PRIVATE_TARGETS: ${WC_ALLOW_PRIVATE_TARGETS:-false}
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+      args:
+        DOCKER_LIBRARY_REGISTRY: ${DOCKER_LIBRARY_REGISTRY:-docker.io/library}
+    environment:
+      # UI calls the API over HTTPS by default in production
+      PUBLIC_API_BASE_URL: ${UI_API_BASE_URL:-https://api.sec-scanner.pro}
+    ports:
+      # expose only locally; public access via Nginx :80/:443
+      - "127.0.0.1:3001:3000"
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - app
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  app:
+  data:
+    # internal: true removed to allow port mapping for MCP connections
+    # Ports are still bound to 127.0.0.1 only, so access is limited to localhost
+

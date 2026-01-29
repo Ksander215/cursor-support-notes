@@ -1,0 +1,22 @@
+---
+type Size = "sm" | "md" | "lg";
+
+const {
+  size = "md",
+  label = "Loading",
+  class: className = "",
+} = Astro.props as {
+  size?: Size;
+  label?: string;
+  class?: string;
+};
+
+const classes = ["spinner", `spinner-${size}`, className]
+  .filter(Boolean)
+  .join(" ");
+---
+
+<span class={classes} role="status" aria-label={label} aria-live="polite">
+  <span class="sr-only">{label}…</span>
+</span>
+

@@ -1,0 +1,34 @@
+---
+import "../styles/global.css";
+import { ViewTransitions } from "astro:transitions";
+const { title = "sec-scanner.pro", description = "Enterprise Security Scanner Platform" } = Astro.props;
+---
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <ViewTransitions />
+  </head>
+  <body>
+    <slot />
+    <script is:inline>
+      // Theme bootstrap (no flash)
+      (function () {
+        try {
+          var theme = localStorage.getItem("sec_scanner_theme");
+          if (theme === "dark" || theme === "light") {
+            document.documentElement.setAttribute("data-theme", theme);
+          }
+          var effects = localStorage.getItem("sec_scanner_effects");
+          if (effects === "full" || effects === "reduced") {
+            document.documentElement.setAttribute("data-effects", effects);
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </body>
+</html>
+

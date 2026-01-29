@@ -1,0 +1,32 @@
+---
+type Variant = "text" | "rect" | "circle";
+
+const {
+  width,
+  height,
+  variant = "rect",
+  class: className = "",
+  style = "",
+} = Astro.props as {
+  width?: string;
+  height?: string;
+  variant?: Variant;
+  class?: string;
+  style?: string;
+};
+
+const classes = ["skeleton", `skeleton-${variant}`, className]
+  .filter(Boolean)
+  .join(" ");
+
+const styles = [
+  width ? `width:${width}` : "",
+  height ? `height:${height}` : "",
+  style,
+]
+  .filter(Boolean)
+  .join(";");
+---
+
+<div class={classes} style={styles} aria-hidden="true"></div>
+

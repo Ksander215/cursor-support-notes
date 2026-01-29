@@ -1,0 +1,13 @@
+---
+const { tone = "neutral", class: className = "" } = Astro.props as {
+  tone?: "ok" | "warn" | "bad" | "neutral";
+  class?: string;
+};
+const toneClass =
+  tone === "ok" ? "badge-ok" : tone === "warn" ? "badge-warn" : tone === "bad" ? "badge-bad" : "";
+---
+
+<span class={`badge ${toneClass} ${className}`.trim()}>
+  <slot />
+</span>
+

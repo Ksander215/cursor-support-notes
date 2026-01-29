@@ -1,0 +1,232 @@
+---
+// ScoreBreakdown component - displays score breakdown by category
+---
+
+<div id="scoreBreakdownContainer" class="score-breakdown">
+  <div id="scoreBreakdownError" style="display: none; margin-top: var(--space-3);">
+    <div class="muted" style="font-size: 13px;">No score data available</div>
+  </div>
+  <div id="scoreBreakdownContent" style="display: none;">
+    <h3 class="h3" style="margin-bottom: var(--space-2);">Score Breakdown</h3>
+    <div id="scoreBreakdownChart" style="width: 100%; min-height: 250px;"></div>
+    <div id="scoreBreakdownList" style="margin-top: var(--space-3); display: grid; gap: var(--space-2);"></div>
+  </div>
+  <div id="scoreBreakdownLoading" style="display: none;">
+    <div class="skeleton skeleton-text" style="width: 60%; margin-bottom: var(--space-2);"></div>
+    <div class="skeleton" style="height: 250px; border-radius: 8px; margin-top: var(--space-3);"></div>
+  </div>
+</div>
+
+<script>
+  import * as d3 from "d3";
+
+  export function renderScoreBreakdown(containerId, resultData, overallScore) {
+    const container = document.getElementById(containerId || "scoreBreakdownContainer");
+    const content = document.getElementById("scoreBreakdownContent");
+    const error = document.getElementById("scoreBreakdownError");
+    const loading = document.getElementById("scoreBreakdownLoading");
+    const chartEl = document.getElementById("scoreBreakdownChart");
+    const listEl = document.getElementById("scoreBreakdownList");
+
+    if (!resultData || !resultData.categories) {
+      if (content) content.style.display = "none";
+      if (loading) loading.style.display = "none";
+      if (error) error.style.display = "block";
+      return;
+    }
+
+    if (error) error.style.display = "none";
+    if (loading) loading.style.display = "none";
+    if (content) content.style.display = "block";
+
+    if (!chartEl || !listEl) return;
+
+    // Clear previous content
+    chartEl.innerHTML = "";
+    listEl.innerHTML = "";
+
+    // Extract category scores and weights
+    const categories = resultData.categories || {};
+    const weights = { ssl: 0.35, headers: 0.25, ports: 0.20, web_vulnerabilities: 0.20 };
+    const data = [];
+
+    for (const [categoryName, categoryData] of Object.entries(categories)) {
+      const score = categoryData?.score || 0;
+      const weight = weights[categoryName] || 0.1;
+      const contribution = score * weight;
+
+      data.push({
+        category: categoryName.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+        score: score,
+        weight: weight,
+        contribution: contribution,
+        skipped: categoryData?.skipped || false,
+      });
+    }
+
+    if (data.length === 0) {
+      chartEl.innerHTML = '<div class="muted" style="text-align: center; padding: 40px;">No category data</div>';
+      return;
+    }
+
+    // Sort by contribution (descending)
+    data.sort((a, b) => b.contribution - a.contribution);
+
+    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+    const width = chartEl.clientWidth - margin.left - margin.right;
+    const height = 200 - margin.top - margin.bottom;
+
+    // Create SVG
+    const svg = d3
+      .select(chartEl)
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom);
+
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Scales
+    const xScale = d3
+      .scaleBand()
+      .domain(data.map((d) => d.category))
+      .range([0, width])
+      .padding(0.3);
+
+    const yScale = d3
+      .scaleLinear()
+      .domain([0, 100])
+      .range([height, 0]);
+
+    // Color scale based on score
+    const colorScale = (score) => {
+      if (score >= 80) return "var(--success)";
+      if (score >= 60) return "var(--warning)";
+      return "var(--error)";
+    };
+
+    // Add bars for scores
+    g.selectAll(".bar")
+      .data(data)
+      .enter()
+      .append("rect")
+      .attr("class", "bar")
+      .attr("x", (d) => xScale(d.category))
+      .attr("y", (d) => yScale(d.score))
+      .attr("width", xScale.bandwidth())
+      .attr("height", (d) => height - yScale(d.score))
+      .attr("fill", (d) => (d.skipped ? "var(--panel-2)" : colorScale(d.score)))
+      .attr("rx", 4)
+      .attr("opacity", (d) => (d.skipped ? 0.5 : 1))
+      .on("mouseover", function (event, d) {
+        const tooltip = d3.select("body").append("div").attr("class", "tooltip").style("opacity", 0);
+
+        tooltip
+          .html(
+            `<div style="padding: 8px; background: var(--panel); border-radius: 6px; font-size: 12px;">
+              <div style="font-weight: 600;">${d.category}</div>
+              <div class="muted" style="margin-top: 4px;">Score: ${d.score.toFixed(1)}</div>
+              <div class="muted" style="margin-top: 2px;">Weight: ${(d.weight * 100).toFixed(0)}%</div>
+              <div class="muted" style="margin-top: 2px;">Contribution: ${d.contribution.toFixed(1)}</div>
+            </div>`
+          )
+          .style("position", "absolute")
+          .style("pointer-events", "none")
+          .style("left", event.pageX + 10 + "px")
+          .style("top", event.pageY - 10 + "px")
+          .style("opacity", 1)
+          .style("z-index", 1000);
+
+        d3.select(this).attr("opacity", 0.8);
+      })
+      .on("mouseout", function () {
+        d3.select("body").selectAll(".tooltip").remove();
+        d3.select(this).attr("opacity", (d) => (d.skipped ? 0.5 : 1));
+      });
+
+    // Add score labels on bars
+    g.selectAll(".label")
+      .data(data)
+      .enter()
+      .append("text")
+      .attr("class", "label")
+      .attr("x", (d) => xScale(d.category) + xScale.bandwidth() / 2)
+      .attr("y", (d) => yScale(d.score) - 5)
+      .attr("text-anchor", "middle")
+      .style("font-size", "11px")
+      .style("fill", "var(--text)")
+      .text((d) => (d.skipped ? "—" : d.score.toFixed(0)));
+
+    // Add axes
+    g.append("g")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(xScale))
+      .selectAll("text")
+      .style("font-size", "11px")
+      .style("fill", "var(--text-muted)")
+      .attr("transform", "rotate(-45)")
+      .style("text-anchor", "end");
+
+    g.append("g")
+      .call(d3.axisLeft(yScale).ticks(5))
+      .selectAll("text")
+      .style("font-size", "11px")
+      .style("fill", "var(--text-muted)");
+
+    // Add axis label
+    g.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 0 - margin.left)
+      .attr("x", 0 - height / 2)
+      .attr("dy", "1em")
+      .style("text-anchor", "middle")
+      .style("font-size", "12px")
+      .style("fill", "var(--text-muted)")
+      .text("Score");
+
+    // Render list with details
+    data.forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "panel";
+      card.style.cssText = "padding: 12px 16px; border-radius: 12px; background: var(--panel-2);";
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight: 600; font-size: 14px;">${item.category}</div>
+            <div class="muted" style="font-size: 12px; margin-top: 4px;">
+              Weight: ${(item.weight * 100).toFixed(0)}% · Contribution: ${item.contribution.toFixed(1)}
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 20px; font-weight: 650; color: ${colorScale(item.score)};">
+              ${item.skipped ? "—" : item.score.toFixed(1)}
+            </div>
+            ${item.skipped ? '<div class="muted" style="font-size: 11px;">Skipped</div>' : ""}
+          </div>
+        </div>
+      `;
+      listEl.appendChild(card);
+    });
+  }
+
+  export function showScoreBreakdownLoading() {
+    const content = document.getElementById("scoreBreakdownContent");
+    const error = document.getElementById("scoreBreakdownError");
+    const loading = document.getElementById("scoreBreakdownLoading");
+    if (content) content.style.display = "none";
+    if (error) error.style.display = "none";
+    if (loading) loading.style.display = "block";
+  }
+</script>
+
+<style>
+  .score-breakdown {
+    width: 100%;
+  }
+  .score-breakdown svg {
+    display: block;
+  }
+  .score-breakdown .bar {
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+</style>

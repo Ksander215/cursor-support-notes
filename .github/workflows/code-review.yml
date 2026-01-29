@@ -1,0 +1,192 @@
+name: Code Review & Quality Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, develop]
+
+jobs:
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black mypy bandit safety
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Run Ruff (linter)
+        continue-on-error: true
+        run: |
+          echo "## 🔍 Ruff Linter Results" >> $GITHUB_STEP_SUMMARY
+          ruff check . --output-format=github || true
+          ruff check . --output-format=json > ruff-results.json || true
+      
+      - name: Run Ruff (formatter check)
+        continue-on-error: true
+        run: |
+          echo "## 📝 Code Formatting Check" >> $GITHUB_STEP_SUMMARY
+          ruff format --check . || echo "⚠️ Some files need formatting. Run 'ruff format .' to fix."
+      
+      - name: Run MyPy (type checker)
+        continue-on-error: true
+        run: |
+          echo "## 🔎 Type Checking Results" >> $GITHUB_STEP_SUMMARY
+          mypy src/ --ignore-missing-imports --no-strict-optional || true
+      
+      - name: Run Bandit (security linter)
+        continue-on-error: true
+        run: |
+          echo "## 🔒 Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          bandit -r src/ -f json -o bandit-results.json || true
+          bandit -r src/ -ll || true
+      
+      - name: Check for secrets
+        continue-on-error: true
+        run: |
+          echo "## 🔐 Secret Detection" >> $GITHUB_STEP_SUMMARY
+          # Check for common secret patterns
+          if grep -rE "(api[_-]?key|secret|password|token|credential)\s*[:=]\s*['\"][^'\"]{10,}" --include="*.py" --include="*.ts" --include="*.js" --include="*.astro" src/ services/ 2>/dev/null; then
+            echo "⚠️ Potential secrets found in code. Please review."
+            exit 1
+          else
+            echo "✅ No obvious secrets detected"
+          fi
+      
+      - name: Check dependencies for vulnerabilities
+        continue-on-error: true
+        run: |
+          echo "## 📦 Dependency Security Check" >> $GITHUB_STEP_SUMMARY
+          if [ -f requirements.txt ]; then
+            safety check --json --file requirements.txt || true
+            safety check --file requirements.txt || true
+          fi
+      
+      - name: Generate Code Review Summary
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "## 📊 Code Review Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files Changed" >> $GITHUB_STEP_SUMMARY
+          git diff --name-status ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | head -20 >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Code Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- Lines added: $(git diff --shortstat ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | awk '{print $4}')" >> $GITHUB_STEP_SUMMARY
+          echo "- Lines deleted: $(git diff --shortstat ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | awk '{print $6}')" >> $GITHUB_STEP_SUMMARY
+
+  frontend-checks:
+    name: Frontend Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: services/frontend/package-lock.json
+      
+      - name: Install frontend dependencies
+        working-directory: services/frontend
+        run: npm ci
+      
+      - name: Run Astro type check
+        working-directory: services/frontend
+        continue-on-error: true
+        run: |
+          echo "## 🎨 Frontend Type Check" >> $GITHUB_STEP_SUMMARY
+          npm run check || true
+      
+      - name: Check for console.log statements
+        continue-on-error: true
+        run: |
+          echo "## 🧹 Frontend Code Quality" >> $GITHUB_STEP_SUMMARY
+          if grep -r "console\.log" services/frontend/src --include="*.ts" --include="*.js" --include="*.astro" 2>/dev/null; then
+            echo "⚠️ Found console.log statements. Consider removing them for production." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No console.log statements found" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Check for hardcoded API URLs
+        continue-on-error: true
+        run: |
+          echo "## 🔗 API Configuration Check" >> $GITHUB_STEP_SUMMARY
+          if grep -rE "http://localhost|https://api\.|http://[0-9]" services/frontend/src --include="*.ts" --include="*.js" --include="*.astro" 2>/dev/null | grep -v "PUBLIC_API_BASE_URL\|env\."; then
+            echo "⚠️ Found hardcoded URLs. Use environment variables instead." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No hardcoded URLs detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  database-migrations:
+    name: Database Migration Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install alembic sqlalchemy
+      
+      - name: Check migration files
+        continue-on-error: true
+        run: |
+          echo "## 🗄️ Database Migration Check" >> $GITHUB_STEP_SUMMARY
+          if [ -d alembic/versions ]; then
+            echo "✅ Migration directory exists" >> $GITHUB_STEP_SUMMARY
+            echo "Found $(ls -1 alembic/versions/*.py 2>/dev/null | wc -l) migration files" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No migration directory found" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check for common migration issues
+          if grep -r "drop_table\|drop_column" alembic/versions/*.py 2>/dev/null; then
+            echo "⚠️ Found potentially destructive migrations. Please review carefully." >> $GITHUB_STEP_SUMMARY
+          fi

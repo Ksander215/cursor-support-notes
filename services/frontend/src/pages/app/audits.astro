@@ -1,0 +1,495 @@
+---
+import AppShell from "../../components/layout/AppShell.astro";
+import Button from "../../components/ui/Button.astro";
+import Card from "../../components/ui/Card.astro";
+import EmptyState from "../../components/ui/EmptyState.astro";
+import ErrorState from "../../components/ui/ErrorState.astro";
+import TimelineChart from "../../components/TimelineChart.astro";
+import VulnerabilityChart from "../../components/VulnerabilityChart.astro";
+import ScoreBreakdown from "../../components/ScoreBreakdown.astro";
+import ProgressIndicator from "../../components/ProgressIndicator.astro";
+---
+
+<AppShell title="Audits · sec-scanner.pro" description="Audit list and details" active="audits">
+  <Card class="section" id="listView">
+    <div class="row">
+      <div>
+        <h1 class="h2">Audits</h1>
+        <p class="muted" style="margin: var(--space-2) 0 0;">Browse recent audits and open details.</p>
+      </div>
+      <div class="row-right">
+        <span class="kbd" id="apiBaseLabel"></span>
+        <Button id="refreshBtn" variant="ghost">Refresh</Button>
+      </div>
+    </div>
+
+    <div id="errorBox" style="margin-top: var(--space-3); display:none;">
+      <ErrorState title="Failed to load audits" messageId="errorText" retryId="retryListBtn" retryLabel="Retry" />
+    </div>
+    <div id="emptyBox" style="margin-top: var(--space-3); display:none;">
+      <EmptyState title="No audits yet" description="Create one from the dashboard." actionHref="/app/dashboard" actionLabel="Go to dashboard" />
+    </div>
+    <div id="list" style="margin-top: var(--space-3); display:grid; gap: 10px;"></div>
+  </Card>
+
+  <Card class="section" id="detailView" style="display:none;">
+    <div class="row">
+      <div style="min-width:0;">
+        <div class="cluster">
+          <a class="btn btn-ghost btn-sm" href="/app/audits" aria-label="Back to audits list">Back</a>
+          <span class="kbd" id="detailId"></span>
+        </div>
+        <h2 class="h2" style="margin-top: var(--space-3);">Audit</h2>
+        <p class="muted" id="detailTarget" style="margin: var(--space-2) 0 0;"></p>
+      </div>
+      <div class="row-right">
+        <div id="exportButtons" class="cluster" style="display: none; margin-right: var(--space-2);">
+          <Button id="exportPdfBtn" variant="ghost" size="sm">Export PDF</Button>
+          <Button id="exportJsonBtn" variant="ghost" size="sm">Export JSON</Button>
+          <Button id="exportMarkdownBtn" variant="ghost" size="sm">Export MD</Button>
+        </div>
+        <span class="badge" id="detailStatus">—</span>
+      </div>
+    </div>
+
+    <div class="muted" id="detailMeta" style="margin-top: var(--space-3);"></div>
+    <div id="detailError" style="margin-top: var(--space-3); display:none;">
+      <ErrorState title="Failed to load audit" messageId="detailErrorText" retryId="retryDetailBtn" retryLabel="Retry" />
+    </div>
+    <div id="progressSection" style="margin-top: var(--space-3); display: none;">
+      <ProgressIndicator client:load />
+    </div>
+    <div id="detailBody" style="margin-top: var(--space-3);"></div>
+    
+    <div id="timelineSection" style="margin-top: var(--space-4); display: none;">
+      <Card class="section">
+        <TimelineChart client:load />
+      </Card>
+    </div>
+    
+    <div id="chartsSection" style="margin-top: var(--space-4); display: none;">
+      <Card class="section">
+        <VulnerabilityChart client:load />
+      </Card>
+      <Card class="section" style="margin-top: var(--space-4);">
+        <ScoreBreakdown client:load />
+      </Card>
+    </div>
+  </Card>
+
+  <script type="module" is:inline>
+    import { makeClient } from "/src/lib/api.ts";
+    import { getApiBaseUrl, getApiKey } from "/src/lib/storage.ts";
+    import { renderTimeline, showTimelineLoading } from "/src/components/TimelineChart.astro";
+    import { renderVulnerabilityChart, showVulnerabilityLoading } from "/src/components/VulnerabilityChart.astro";
+    import { renderScoreBreakdown, showScoreBreakdownLoading } from "/src/components/ScoreBreakdown.astro";
+    import { renderProgress, showProgressLoading } from "/src/components/ProgressIndicator.astro";
+
+    const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+
+    const elApiBaseLabel = document.getElementById("apiBaseLabel");
+    const elError = document.getElementById("errorBox");
+    const elErrorText = document.getElementById("errorText");
+    const elList = document.getElementById("list");
+
+    const elListView = document.getElementById("listView");
+    const elDetailView = document.getElementById("detailView");
+    const elDetailId = document.getElementById("detailId");
+    const elDetailTarget = document.getElementById("detailTarget");
+    const elDetailStatus = document.getElementById("detailStatus");
+    const elDetailMeta = document.getElementById("detailMeta");
+    const elDetailBody = document.getElementById("detailBody");
+    const elDetailError = document.getElementById("detailError");
+    const elDetailErrorText = document.getElementById("detailErrorText");
+    const elTimelineSection = document.getElementById("timelineSection");
+    const elChartsSection = document.getElementById("chartsSection");
+    const elProgressSection = document.getElementById("progressSection");
+    const elExportButtons = document.getElementById("exportButtons");
+    const elExportPdfBtn = document.getElementById("exportPdfBtn");
+    const elExportJsonBtn = document.getElementById("exportJsonBtn");
+    const elExportMarkdownBtn = document.getElementById("exportMarkdownBtn");
+    
+    let progressPollInterval: number | null = null;
+
+    function setEmpty(isEmpty) {
+      const box = document.getElementById("emptyBox");
+      if (!box) return;
+      box.style.display = isEmpty ? "block" : "none";
+    }
+
+    function currentApiBase() {
+      return getApiBaseUrl(DEFAULT_API_BASE);
+    }
+    function currentApiKey() {
+      return getApiKey();
+    }
+    function client() {
+      return makeClient(currentApiBase());
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function setListError(msg) {
+      if (!elError) return;
+      if (!msg) {
+        elError.style.display = "none";
+        if (elErrorText) elErrorText.textContent = "";
+        return;
+      }
+      elError.style.display = "block";
+      if (elErrorText) elErrorText.textContent = msg;
+    }
+
+    function setDetailError(msg) {
+      if (!elDetailError) return;
+      if (!msg) {
+        elDetailError.style.display = "none";
+        if (elDetailErrorText) elDetailErrorText.textContent = "";
+        return;
+      }
+      elDetailError.style.display = "block";
+      if (elDetailErrorText) elDetailErrorText.textContent = msg;
+    }
+
+    function badgeClassFor(status) {
+      if (status === "completed") return "badge badge-ok";
+      if (status === "failed") return "badge badge-bad";
+      return "badge badge-warn";
+    }
+
+    function renderRow(a) {
+      const created = a.created_at ? new Date(a.created_at).toLocaleString() : "";
+      const href = `/app/audits?id=${encodeURIComponent(String(a.id || ""))}`;
+      return `
+        <a class="panel" href="${href}" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+            <div style="min-width:0;">
+              <div class="truncate" style="font-weight:650;letter-spacing:-0.01em;">
+                ${escapeHtml(a.target)} <span class="muted">(${escapeHtml(a.mode)})</span>
+              </div>
+              <div class="muted" style="margin-top:4px;font-size:13px;">${escapeHtml(created)} · id=${escapeHtml(a.id)}</div>
+            </div>
+            <div class="row-right">
+              <span class="${badgeClassFor(a.status)}">${escapeHtml(a.status)}</span>
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    function listSkeleton() {
+      return `
+        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
+          <div class="skeleton skeleton-text" style="width:68%;"></div>
+          <div class="skeleton skeleton-text" style="width:42%;margin-top:10px;"></div>
+        </div>
+        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
+          <div class="skeleton skeleton-text" style="width:62%;"></div>
+          <div class="skeleton skeleton-text" style="width:38%;margin-top:10px;"></div>
+        </div>
+        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
+          <div class="skeleton skeleton-text" style="width:66%;"></div>
+          <div class="skeleton skeleton-text" style="width:40%;margin-top:10px;"></div>
+        </div>
+      `;
+    }
+
+    async function refreshList() {
+      setListError("");
+      if (elApiBaseLabel) elApiBaseLabel.textContent = currentApiBase();
+      if (!elList) return;
+      setEmpty(false);
+      elList.innerHTML = listSkeleton();
+      try {
+        const data = await client().listAudits(50, currentApiKey());
+        const items = (data && data.items) ? data.items : [];
+        if (items.length === 0) {
+          elList.innerHTML = "";
+          setEmpty(true);
+          return;
+        }
+        elList.innerHTML = items.map(renderRow).join("");
+      } catch (e) {
+        elList.innerHTML = "";
+        setListError(e?.message || String(e));
+      }
+    }
+
+    function detailSkeleton() {
+      return `
+        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
+          <div class="skeleton skeleton-text" style="width:40%;"></div>
+          <div class="skeleton skeleton-text" style="width:72%;margin-top:10px;"></div>
+          <div class="skeleton skeleton-text" style="width:56%;margin-top:10px;"></div>
+        </div>
+      `;
+    }
+
+    async function loadDetail(id) {
+      setDetailError("");
+      if (elDetailId) elDetailId.textContent = String(id);
+      if (elDetailTarget) elDetailTarget.textContent = "";
+      if (elDetailMeta) elDetailMeta.textContent = "";
+      if (!elDetailBody) return;
+      elDetailBody.innerHTML = detailSkeleton();
+      if (elDetailStatus) {
+        elDetailStatus.className = "badge";
+        elDetailStatus.textContent = "—";
+      }
+      try {
+        // Load audit with result data for charts
+        const a = await client().getAudit(String(id), currentApiKey(), true, false);
+        if (elDetailTarget) elDetailTarget.textContent = a.target ? `${a.target} (${a.mode})` : "";
+        if (elDetailStatus) {
+          elDetailStatus.className = badgeClassFor(a.status);
+          elDetailStatus.textContent = a.status || "—";
+        }
+
+        const created = a.created_at ? new Date(a.created_at).toLocaleString() : "";
+        const started = a.started_at ? new Date(a.started_at).toLocaleString() : "";
+        const completed = a.completed_at ? new Date(a.completed_at).toLocaleString() : "";
+        if (elDetailMeta) {
+          elDetailMeta.textContent = [created && `Created: ${created}`, started && `Started: ${started}`, completed && `Done: ${completed}`]
+            .filter(Boolean)
+            .join(" · ");
+        }
+
+        elDetailBody.innerHTML = `
+          <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
+            <div style="font-weight:650;letter-spacing:-0.01em;">Details</div>
+            <div class="muted" style="margin-top:4px;font-size:13px;">
+              overall_score=${escapeHtml(a.overall_score)} · risk_level=${escapeHtml(a.risk_level)} · error=${escapeHtml(a.error)}
+            </div>
+          </div>
+        `;
+        
+        // Show/hide progress indicator based on status
+        if ((a.status === "running" || a.status === "queued") && elProgressSection) {
+          elProgressSection.style.display = "block";
+          startProgressPolling(id);
+        } else {
+          stopProgressPolling();
+          if (elProgressSection) elProgressSection.style.display = "none";
+        }
+        
+        // Show export buttons if audit is completed
+        if (a.status === "completed" && elExportButtons) {
+          elExportButtons.style.display = "flex";
+        } else if (elExportButtons) {
+          elExportButtons.style.display = "none";
+        }
+        
+        // Load charts if audit is completed
+        if (a.status === "completed") {
+          // Load timeline history
+          if (a.overall_score != null) {
+            await loadTimeline(id);
+          } else {
+            if (elTimelineSection) elTimelineSection.style.display = "none";
+          }
+          
+          // Load result data for vulnerability and score breakdown charts
+          if (a.result) {
+            await loadCharts(a.result, a.overall_score);
+          } else {
+            if (elChartsSection) elChartsSection.style.display = "none";
+          }
+        } else {
+          if (elTimelineSection) elTimelineSection.style.display = "none";
+          if (elChartsSection) elChartsSection.style.display = "none";
+        }
+      } catch (e) {
+        elDetailBody.innerHTML = "";
+        setDetailError(e?.message || String(e));
+        if (elTimelineSection) elTimelineSection.style.display = "none";
+        if (elChartsSection) elChartsSection.style.display = "none";
+      }
+    }
+    
+    async function loadCharts(resultData, overallScore) {
+      if (!elChartsSection) return;
+      showVulnerabilityLoading();
+      showScoreBreakdownLoading();
+      elChartsSection.style.display = "block";
+      
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        renderVulnerabilityChart("vulnerabilityContainer", resultData);
+        renderScoreBreakdown("scoreBreakdownContainer", resultData, overallScore);
+      }, 100);
+    }
+    
+    async function loadTimeline(auditId) {
+      if (!elTimelineSection) return;
+      showTimelineLoading();
+      elTimelineSection.style.display = "block";
+      try {
+        const history = await client().getAuditHistory(String(auditId), 50, currentApiKey());
+        renderTimeline("timelineContainer", history);
+      } catch (e) {
+        // Timeline endpoint may return 404 if no history, which is fine
+        renderTimeline("timelineContainer", null);
+      }
+    }
+    
+    async function loadProgress(auditId) {
+      if (!elProgressSection) return;
+      try {
+        const progress = await client().getAuditProgress(String(auditId), currentApiKey());
+        renderProgress("progressContainer", progress);
+        
+        // Stop polling if audit is completed or failed
+        if (progress.overall_status === "completed" || progress.overall_status === "failed") {
+          stopProgressPolling();
+          // Reload detail to show final state
+          setTimeout(() => {
+            const id = selectedId();
+            if (id) loadDetail(id);
+          }, 500);
+        }
+      } catch (e) {
+        console.error("Failed to load progress:", e);
+        // Don't show error, just stop polling
+        stopProgressPolling();
+      }
+    }
+    
+    function startProgressPolling(auditId) {
+      stopProgressPolling(); // Clear any existing interval
+      
+      // Load immediately
+      showProgressLoading("progressContainer");
+      loadProgress(auditId);
+      
+      // Poll every 2 seconds
+      progressPollInterval = window.setInterval(() => {
+        loadProgress(auditId);
+      }, 2000);
+    }
+    
+    function stopProgressPolling() {
+      if (progressPollInterval !== null) {
+        clearInterval(progressPollInterval);
+        progressPollInterval = null;
+      }
+    }
+
+    function selectedId() {
+      return new URL(window.location.href).searchParams.get("id");
+    }
+
+    function setMode(mode) {
+      if (!elListView || !elDetailView) return;
+      elListView.style.display = mode === "list" ? "block" : "none";
+      elDetailView.style.display = mode === "detail" ? "block" : "none";
+    }
+
+    async function renderFromUrl() {
+      if (elApiBaseLabel) elApiBaseLabel.textContent = currentApiBase();
+      const id = selectedId();
+      if (id) {
+        setMode("detail");
+        await loadDetail(id);
+        return;
+      }
+      setMode("list");
+      await refreshList();
+    }
+
+    function exportAudit(format) {
+      const id = selectedId();
+      if (!id) return;
+      
+      const apiBase = currentApiBase();
+      const apiKey = currentApiKey();
+      const url = `${apiBase}/api/v1/audits/${encodeURIComponent(id)}/export?format=${format}`;
+      
+      const headers = {};
+      if (apiKey) headers["X-API-Key"] = apiKey;
+      
+      fetch(url, { headers })
+        .then((res) => {
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          return res.blob();
+        })
+        .then((blob) => {
+          const target = document.getElementById("detailTarget")?.textContent || "audit";
+          const filename = `security_audit_${target.replace(/[^a-z0-9]/gi, "_")}_${id.substring(0, 8)}.${format}`;
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        })
+        .catch((e) => {
+          alert(`Export failed: ${e.message}`);
+        });
+    }
+
+    document.getElementById("refreshBtn")?.addEventListener("click", refreshList);
+    document.getElementById("retryListBtn")?.addEventListener("click", refreshList);
+    document.getElementById("retryDetailBtn")?.addEventListener("click", () => {
+      const id = selectedId();
+      if (id) loadDetail(id);
+    });
+    elExportPdfBtn?.addEventListener("click", () => exportAudit("pdf"));
+    elExportJsonBtn?.addEventListener("click", () => exportAudit("json"));
+    elExportMarkdownBtn?.addEventListener("click", () => exportAudit("markdown"));
+    window.addEventListener("popstate", renderFromUrl);
+
+    function isPlainLeftClick(ev) {
+      return ev && ev.button === 0 && !ev.metaKey && !ev.ctrlKey && !ev.shiftKey && !ev.altKey;
+    }
+
+    // Client-side navigation within /app/audits (no full page reload).
+    document.addEventListener("click", (ev) => {
+      if (!isPlainLeftClick(ev)) return;
+      const a = ev.target && ev.target.closest ? ev.target.closest("a") : null;
+      if (!a || !a.getAttribute) return;
+      const href = a.getAttribute("href") || "";
+      if (!href.startsWith("/app/audits")) return;
+
+      const url = new URL(a.href, window.location.origin);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname !== "/app/audits") return;
+
+      ev.preventDefault();
+      stopProgressPolling(); // Stop polling when navigating away
+      window.history.pushState({}, "", url.pathname + url.search);
+      renderFromUrl();
+    });
+    
+    // Stop polling when page is hidden
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopProgressPolling();
+      } else {
+        // Restart polling if we're viewing a running audit
+        const id = selectedId();
+        if (id) {
+          // Check if audit is still running
+          client().getAudit(String(id), currentApiKey(), false, false)
+            .then(a => {
+              if (a.status === "running" || a.status === "queued") {
+                startProgressPolling(id);
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    });
+
+    renderFromUrl();
+  </script>
+</AppShell>
+

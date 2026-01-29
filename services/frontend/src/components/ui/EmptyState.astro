@@ -1,0 +1,36 @@
+---
+import Button from "./Button.astro";
+
+const {
+  title = "Nothing here yet",
+  description,
+  actionHref,
+  actionLabel,
+  actionId,
+  class: className = "",
+} = Astro.props as {
+  title?: string;
+  description?: string;
+  actionHref?: string;
+  actionLabel?: string;
+  actionId?: string;
+  class?: string;
+};
+---
+
+<div class={`empty-state ${className}`.trim()} role="status" aria-live="polite">
+  <div class="empty-state-title">{title}</div>
+  {description ? <div class="empty-state-desc muted">{description}</div> : null}
+  {actionHref && actionLabel ? (
+    <div class="empty-state-actions" style="margin-top: var(--space-3);">
+      <Button href={actionHref} id={actionId} variant="primary">
+        {actionLabel}
+      </Button>
+    </div>
+  ) : (
+    <div class="empty-state-actions" style="margin-top: var(--space-3);">
+      <slot />
+    </div>
+  )}
+</div>
+

@@ -1,0 +1,140 @@
+name: 'sec-scanner Security Scan'
+description: 'Run security scan using sec-scanner.pro API'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  api-key:
+    description: 'sec-scanner.pro API key'
+    required: true
+  api-base-url:
+    description: 'sec-scanner.pro API base URL'
+    required: false
+    default: 'https://api.sec-scanner.pro'
+  target:
+    description: 'Target to scan (domain, IP, or URL). Defaults to repository URL if not provided.'
+    required: false
+  mode:
+    description: 'Scan mode: safe, normal, or full'
+    required: false
+    default: 'safe'
+  fail-on:
+    description: 'Comma-separated list of risk levels that should cause failure: critical, high, medium, low, or score threshold (e.g., score<60)'
+    required: false
+    default: 'critical'
+  wait:
+    description: 'Wait for scan completion (synchronous mode)'
+    required: false
+    default: 'true'
+  timeout:
+    description: 'Maximum wait time in seconds'
+    required: false
+    default: '300'
+
+outputs:
+  audit-id:
+    description: 'Audit ID from sec-scanner.pro'
+  passed:
+    description: 'Whether the scan passed CI checks'
+  overall-score:
+    description: 'Overall security score'
+  risk-level:
+    description: 'Risk level (LOW, MEDIUM, HIGH, CRITICAL)'
+  report-url:
+    description: 'URL to view full report'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set target from repository URL
+      id: set-target
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.target }}" ]; then
+          TARGET="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          echo "target=${TARGET}" >> $GITHUB_OUTPUT
+        else
+          echo "target=${{ inputs.target }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Run security scan
+      id: scan
+      shell: bash
+      env:
+        API_KEY: ${{ inputs.api-key }}
+        API_BASE_URL: ${{ inputs.api-base-url }}
+        TARGET: ${{ steps.set-target.outputs.target }}
+        MODE: ${{ inputs.mode }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        WAIT: ${{ inputs.wait }}
+        TIMEOUT: ${{ inputs.timeout }}
+        REPO: ${{ github.repository }}
+        COMMIT: ${{ github.sha }}
+        BRANCH: ${{ github.ref_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        set -e
+        
+        # Prepare fail_on array
+        FAIL_ON_ARRAY=$(echo "$FAIL_ON" | tr ',' '\n' | sed 's/^/"/;s/$/"/' | tr '\n' ',' | sed 's/,$//')
+        FAIL_ON_JSON="[$FAIL_ON_ARRAY]"
+        
+        # Prepare CI context
+        CI_CONTEXT_JSON=$(cat <<EOF
+        {
+          "provider": "github",
+          "repo": "$REPO",
+          "commit": "$COMMIT",
+          "branch": "$BRANCH"
+        }
+        EOF
+        )
+        
+        if [ -n "$PR_NUMBER" ] && [ "$PR_NUMBER" != "null" ]; then
+          CI_CONTEXT_JSON=$(echo "$CI_CONTEXT_JSON" | jq ". + {\"pull_request\": \"$PR_NUMBER\"}")
+        fi
+        
+        # Make API request
+        RESPONSE=$(curl -s -X POST "${API_BASE_URL}/api/v1/ci/scan" \
+          -H "Content-Type: application/json" \
+          -H "X-API-Key: ${API_KEY}" \
+          -d "{
+            \"target\": \"${TARGET}\",
+            \"mode\": \"${MODE}\",
+            \"fail_on\": ${FAIL_ON_JSON},
+            \"wait\": ${WAIT},
+            \"timeout\": ${TIMEOUT},
+            \"ci_context\": ${CI_CONTEXT_JSON}
+          }")
+        
+        # Extract outputs
+        AUDIT_ID=$(echo "$RESPONSE" | jq -r '.audit_id // empty')
+        PASSED=$(echo "$RESPONSE" | jq -r '.passed // false')
+        OVERALL_SCORE=$(echo "$RESPONSE" | jq -r '.overall_score // empty')
+        RISK_LEVEL=$(echo "$RESPONSE" | jq -r '.risk_level // empty')
+        REPORT_URL=$(echo "$RESPONSE" | jq -r '.report_url // empty')
+        FAILURE_REASON=$(echo "$RESPONSE" | jq -r '.failure_reason // empty')
+        
+        echo "audit-id=${AUDIT_ID}" >> $GITHUB_OUTPUT
+        echo "passed=${PASSED}" >> $GITHUB_OUTPUT
+        echo "overall-score=${OVERALL_SCORE}" >> $GITHUB_OUTPUT
+        echo "risk-level=${RISK_LEVEL}" >> $GITHUB_OUTPUT
+        echo "report-url=${REPORT_URL}" >> $GITHUB_OUTPUT
+        
+        # Display results
+        echo "::group::Security Scan Results"
+        echo "Audit ID: ${AUDIT_ID}"
+        echo "Overall Score: ${OVERALL_SCORE}"
+        echo "Risk Level: ${RISK_LEVEL}"
+        echo "Report URL: ${REPORT_URL}"
+        if [ -n "$FAILURE_REASON" ]; then
+          echo "Failure Reason: ${FAILURE_REASON}"
+        fi
+        echo "::endgroup::"
+        
+        # Fail if scan didn't pass
+        if [ "$PASSED" != "true" ]; then
+          echo "::error::Security scan failed: ${FAILURE_REASON:-Unknown reason}"
+          exit 1
+        fi

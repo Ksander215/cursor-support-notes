@@ -1,0 +1,43 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DOCKER_LIBRARY_REGISTRY: ${DOCKER_LIBRARY_REGISTRY:-docker.io/library}
+    environment:
+      # Web-Check is reachable by service name inside the compose network
+      - WEB_CHECK_BASE_URL=http://web-check:3000
+      - APP_NAME=sec-scanner.pro API
+      - SEC_SCANNER_DB_PATH=/app/data/sec_scanner.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - web-check
+    restart: unless-stopped
+
+  web-check:
+    build:
+      context: ./services/web-check
+      dockerfile: Dockerfile
+      args:
+        DOCKER_LIBRARY_REGISTRY: ${DOCKER_LIBRARY_REGISTRY:-docker.io/library}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+      args:
+        DOCKER_LIBRARY_REGISTRY: ${DOCKER_LIBRARY_REGISTRY:-docker.io/library}
+    environment:
+      # Used by the UI at build/runtime (defaults to http://localhost:8000)
+      - PUBLIC_API_BASE_URL=http://localhost:8000
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+

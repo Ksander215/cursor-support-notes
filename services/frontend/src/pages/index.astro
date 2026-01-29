@@ -1,0 +1,65 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="sec-scanner.pro" description="Unified security scanning interface">
+  <header class="container site-header">
+    <nav class="nav">
+      <a href="/" class="brand">
+        <span class="panel brand-icon" aria-hidden="true">
+          <span class="brand-dot"></span>
+        </span>
+        <span class="brand-name truncate">sec-scanner.pro</span>
+      </a>
+      <div class="nav-actions">
+        <a class="btn" href="/app/dashboard">Dashboard</a>
+        <a class="btn btn-primary" href="https://api.sec-scanner.pro/web-check/" target="_blank" rel="noreferrer">
+          Web-Check
+        </a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="container fade-in main">
+    <section class="panel hero">
+      <div class="hero-copy">
+        <p class="muted" style="margin:0 0 var(--space-2);">
+          Unified interface for audits, reports, and operational workflows
+        </p>
+        <h1 class="h1">
+          Enterprise Security Scanner Platform.
+          <span class="muted">Fast, safe, and production‑oriented.</span>
+        </h1>
+        <p class="muted" style="margin: var(--space-4) 0 0;">
+          This UI is the new home for product navigation and dashboards. Web-Check remains available under
+          <span class="kbd">/web-check/</span> on the API domain.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="/app/dashboard">Open Dashboard</a>
+          <a class="btn" href="https://api.sec-scanner.pro/docs" target="_blank" rel="noreferrer">API Docs</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-12">
+      <div class="panel col-6 section">
+        <h2 class="h2">Design system first</h2>
+        <p class="muted" style="margin: var(--space-2) 0 0;">
+          First iteration focuses on crisp layout, typography, tokens, and components. 3D / cinematic transitions come next.
+        </p>
+      </div>
+      <div class="panel col-6 section">
+        <h2 class="h2">Secure by default</h2>
+        <p class="muted" style="margin: var(--space-2) 0 0;">
+          API key support, SSRF guards, strict method limits, and minimal CORS.
+        </p>
+      </div>
+      <div class="panel col-12 section">
+        <h2 class="h2">Next</h2>
+        <p class="muted" style="margin: var(--space-2) 0 0;">
+          Add a proper dashboard: audit queue status, trends, risk distribution, and tenant-scoped access.
+        </p>
+      </div>
+    </section>
+  </main>
+</Base>
+

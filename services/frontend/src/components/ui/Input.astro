@@ -1,0 +1,14 @@
+---
+const { id, name, type = "text", placeholder = "", value = "", class: className = "", required = false } = Astro.props;
+---
+
+<input
+  id={id}
+  name={name}
+  type={type}
+  placeholder={placeholder}
+  value={value}
+  required={required}
+  class={`input ${className}`.trim()}
+/>
+

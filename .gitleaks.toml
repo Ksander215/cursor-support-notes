@@ -1,0 +1,32 @@
+# Gitleaks configuration for secret detection
+
+title = "sec-scanner.pro Secret Detection"
+
+[extend]
+# Use default rules
+useDefault = true
+
+[allowlist]
+description = "Allowlist for false positives"
+paths = [
+    '''^\.secrets\.baseline$''',
+    '''^package-lock\.json$''',
+    '''^yarn\.lock$''',
+    '''^\.env\.example$''',
+    '''^\.env\.production\.example$''',
+    '''^requirements\.txt$''',
+    '''^package\.json$''',
+]
+
+commits = [
+    # Add commit hashes to allowlist if needed
+]
+
+regexes = [
+    '''SEC_SCANNER_.*''',  # Allow SEC_SCANNER env vars
+    '''process\.env\..*''',  # Allow process.env references
+    '''import\.meta\.env\..*''',  # Allow import.meta.env references
+]
+
+[rules]
+# Custom rules can be added here

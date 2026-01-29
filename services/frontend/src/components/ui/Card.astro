@@ -1,0 +1,9 @@
+---
+const { class: className = "", as = "section" } = Astro.props;
+const Tag = as;
+---
+
+<Tag class={`panel ${className}`.trim()}>
+  <slot />
+</Tag>
+

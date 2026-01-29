@@ -1,0 +1,30 @@
+---
+import Alert from "./Alert.astro";
+import Button from "./Button.astro";
+
+const {
+  title = "Something went wrong",
+  messageId = "errorMessage",
+  retryId,
+  retryLabel = "Retry",
+  class: className = "",
+} = Astro.props as {
+  title?: string;
+  messageId?: string;
+  retryId?: string;
+  retryLabel?: string;
+  class?: string;
+};
+---
+
+<div class={`error-state ${className}`.trim()}>
+  <Alert tone="bad" title={title} role="alert">
+    <span id={messageId}></span>
+    {retryId ? (
+      <div style="margin-top: var(--space-3);">
+        <Button id={retryId} variant="ghost" size="sm">{retryLabel}</Button>
+      </div>
+    ) : null}
+  </Alert>
+</div>
+
