@@ -80,6 +80,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     import { renderVulnerabilityChart, showVulnerabilityLoading } from "/src/components/VulnerabilityChart.astro";
     import { renderScoreBreakdown, showScoreBreakdownLoading } from "/src/components/ScoreBreakdown.astro";
     import { renderProgress, showProgressLoading } from "/src/components/ProgressIndicator.astro";
+    import { skeletonAuditList, skeletonDetail } from "/src/lib/skeleton.ts";
 
     const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 
@@ -179,21 +180,9 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
       `;
     }
 
+    // Use imported skeleton generators for consistent loading states
     function listSkeleton() {
-      return `
-        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
-          <div class="skeleton skeleton-text" style="width:68%;"></div>
-          <div class="skeleton skeleton-text" style="width:42%;margin-top:10px;"></div>
-        </div>
-        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
-          <div class="skeleton skeleton-text" style="width:62%;"></div>
-          <div class="skeleton skeleton-text" style="width:38%;margin-top:10px;"></div>
-        </div>
-        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
-          <div class="skeleton skeleton-text" style="width:66%;"></div>
-          <div class="skeleton skeleton-text" style="width:40%;margin-top:10px;"></div>
-        </div>
-      `;
+      return skeletonAuditList(3);
     }
 
     async function refreshList() {
@@ -226,13 +215,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     }
 
     function detailSkeleton() {
-      return `
-        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
-          <div class="skeleton skeleton-text" style="width:40%;"></div>
-          <div class="skeleton skeleton-text" style="width:72%;margin-top:10px;"></div>
-          <div class="skeleton skeleton-text" style="width:56%;margin-top:10px;"></div>
-        </div>
-      `;
+      return skeletonDetail();
     }
 
     async function loadDetail(id) {

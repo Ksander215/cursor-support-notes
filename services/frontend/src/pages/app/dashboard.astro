@@ -76,6 +76,7 @@ import OnboardingWizard from "../../components/OnboardingWizard.astro";
     import { makeClient } from "/src/lib/api.ts";
     import { getApiBaseUrl, getApiKey } from "/src/lib/storage.ts";
     import { getErrorInfo } from "/src/lib/errors.ts";
+    import { skeletonAuditList } from "/src/lib/skeleton.ts";
 
     const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 
@@ -164,21 +165,9 @@ import OnboardingWizard from "../../components/OnboardingWizard.astro";
       if (elStatRunning) elStatRunning.textContent = "…";
     }
 
+    // Use imported skeleton generator for consistent loading states
     function listSkeleton() {
-      return `
-        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
-          <div class="skeleton skeleton-text" style="width:70%;"></div>
-          <div class="skeleton skeleton-text" style="width:40%;margin-top:10px;"></div>
-        </div>
-        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
-          <div class="skeleton skeleton-text" style="width:64%;"></div>
-          <div class="skeleton skeleton-text" style="width:36%;margin-top:10px;"></div>
-        </div>
-        <div class="panel" style="padding:14px 16px;border-radius:16px;background:var(--panel-2);">
-          <div class="skeleton skeleton-text" style="width:68%;"></div>
-          <div class="skeleton skeleton-text" style="width:34%;margin-top:10px;"></div>
-        </div>
-      `;
+      return skeletonAuditList(3);
     }
 
     function renderQuota(quota) {

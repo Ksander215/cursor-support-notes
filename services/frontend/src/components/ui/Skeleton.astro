@@ -1,19 +1,36 @@
 ---
-type Variant = "text" | "rect" | "circle";
+/**
+ * Skeleton loading component with multiple variants
+ * 
+ * Variants:
+ * - text: Single line of text
+ * - rect: Rectangle placeholder
+ * - circle: Circle (avatar, icon)
+ * - card: Full card skeleton
+ * - list-item: List item with avatar and text
+ * - stats: Statistics card
+ * - chart: Chart placeholder
+ */
+
+type Variant = "text" | "rect" | "circle" | "card" | "list-item" | "stats" | "chart";
 
 const {
   width,
   height,
   variant = "rect",
+  lines = 2,
   class: className = "",
   style = "",
 } = Astro.props as {
   width?: string;
   height?: string;
   variant?: Variant;
+  lines?: number;
   class?: string;
   style?: string;
 };
+
+const isComplex = ["card", "list-item", "stats", "chart"].includes(variant);
 
 const classes = ["skeleton", `skeleton-${variant}`, className]
   .filter(Boolean)
@@ -28,4 +45,199 @@ const styles = [
   .join(";");
 ---
 
-<div class={classes} style={styles} aria-hidden="true"></div>
+{!isComplex && (
+  <div class={classes} style={styles} aria-hidden="true"></div>
+)}
+
+{variant === "card" && (
+  <div class={`skeleton-card ${className}`.trim()} style={styles} aria-hidden="true">
+    <div class="skeleton-card-header">
+      <div class="skeleton skeleton-text" style="width: 60%;"></div>
+      <div class="skeleton skeleton-circle" style="width: 24px; height: 24px;"></div>
+    </div>
+    <div class="skeleton-card-body">
+      {Array.from({ length: lines }).map((_, i) => (
+        <div 
+          class="skeleton skeleton-text" 
+          style={`width: ${85 - i * 15}%; animation-delay: ${i * 100}ms;`}
+        ></div>
+      ))}
+    </div>
+  </div>
+)}
+
+{variant === "list-item" && (
+  <div class={`skeleton-list-item ${className}`.trim()} style={styles} aria-hidden="true">
+    <div class="skeleton skeleton-circle skeleton-avatar"></div>
+    <div class="skeleton-list-content">
+      <div class="skeleton skeleton-text" style="width: 70%;"></div>
+      <div class="skeleton skeleton-text skeleton-text-sm" style="width: 45%; animation-delay: 100ms;"></div>
+    </div>
+    <div class="skeleton skeleton-rect skeleton-badge"></div>
+  </div>
+)}
+
+{variant === "stats" && (
+  <div class={`skeleton-stats ${className}`.trim()} style={styles} aria-hidden="true">
+    <div class="skeleton skeleton-text skeleton-stats-value"></div>
+    <div class="skeleton skeleton-text skeleton-stats-label"></div>
+  </div>
+)}
+
+{variant === "chart" && (
+  <div class={`skeleton-chart ${className}`.trim()} style={styles} aria-hidden="true">
+    <div class="skeleton-chart-bars">
+      {[40, 65, 45, 80, 55, 70, 50].map((h, i) => (
+        <div 
+          class="skeleton skeleton-chart-bar" 
+          style={`height: ${h}%; animation-delay: ${i * 80}ms;`}
+        ></div>
+      ))}
+    </div>
+    <div class="skeleton skeleton-text" style="width: 100%; margin-top: 12px;"></div>
+  </div>
+)}
+
+<style>
+  /* Card skeleton */
+  .skeleton-card {
+    padding: var(--space-4);
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  .skeleton-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-3);
+  }
+
+  .skeleton-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  /* List item skeleton */
+  .skeleton-list-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+
+  .skeleton-avatar {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+
+  .skeleton-list-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .skeleton-text-sm {
+    height: 0.75em;
+  }
+
+  .skeleton-badge {
+    width: 60px;
+    height: 24px;
+    border-radius: var(--radius-pill);
+  }
+
+  /* Stats skeleton */
+  .skeleton-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-4);
+  }
+
+  .skeleton-stats-value {
+    width: 60px;
+    height: 2em;
+  }
+
+  .skeleton-stats-label {
+    width: 80px;
+    height: 0.85em;
+  }
+
+  /* Chart skeleton */
+  .skeleton-chart {
+    padding: var(--space-4);
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    min-height: 200px;
+  }
+
+  .skeleton-chart-bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-2);
+    height: 150px;
+    padding: 0 var(--space-2);
+  }
+
+  .skeleton-chart-bar {
+    flex: 1;
+    min-width: 20px;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  }
+
+  /* Improved base skeleton animation */
+  :global(.skeleton) {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+  }
+
+  :global(.skeleton)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.08),
+      transparent
+    );
+    animation: skeleton-shimmer 1.5s infinite;
+  }
+
+  :global([data-theme="light"] .skeleton)::after {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.5),
+      transparent
+    );
+  }
+
+  @keyframes skeleton-shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  :global([data-effects="reduced"] .skeleton)::after {
+    animation: none;
+  }
+</style>
