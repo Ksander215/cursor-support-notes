@@ -15,7 +15,7 @@ RUN apt-get update \
         libpangocairo-1.0-0 \
         libpango-1.0-0 \
         libharfbuzz0b \
-        libgdk-pixbuf2.0-0 \
+        libgdk-pixbuf-2.0-0 \
         shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
