@@ -1,14 +1,13 @@
 import ipaddress
 import logging
 import os
-import socket
 import uuid
 from collections.abc import Iterable
 from contextlib import asynccontextmanager
 from urllib.parse import parse_qs, urlparse
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from sqlalchemy import text
@@ -20,6 +19,8 @@ from src.sec_scanner.api_payments import router as payments_router
 from src.sec_scanner.api_stripe import router as stripe_router
 from src.sec_scanner.logging_config import set_request_id, setup_structured_logging
 from src.sec_scanner.saas import saas_http_middleware
+from src.sec_scanner.security_headers import add_security_headers_middleware
+from src.sec_scanner.websocket_manager import manager as ws_manager
 
 APP_NAME = os.getenv("APP_NAME", "sec-scanner.pro API")
 WEB_CHECK_BASE_URL = os.getenv("WEB_CHECK_BASE_URL", "http://web-check:3000")
@@ -35,7 +36,22 @@ logger = logging.getLogger("sec_scanner")
 async def lifespan(_app: FastAPI):
     # init local sqlite (for audit history)
     sec_db.init_db()
+
+    # Start WebSocket manager for real-time progress updates
+    try:
+        await ws_manager.start_listener()
+        logger.info("WebSocket manager started")
+    except Exception as e:
+        logger.warning(f"WebSocket manager failed to start: {e}")
+
     yield
+
+    # Stop WebSocket manager
+    try:
+        await ws_manager.stop_listener()
+        logger.info("WebSocket manager stopped")
+    except Exception as e:
+        logger.warning(f"WebSocket manager failed to stop: {e}")
 
 
 app = FastAPI(title=APP_NAME, lifespan=lifespan)
@@ -66,6 +82,10 @@ if cors_origins:
         expose_headers=["X-Request-ID"],
         max_age=600,
     )
+
+# Security headers middleware (fallback for development when not behind Nginx)
+# In production, Nginx handles CSP and other security headers
+add_security_headers_middleware(app)
 
 
 # Request ID middleware (must be before other middleware)
@@ -197,40 +217,18 @@ def _filter_hop_by_hop_headers(headers: Iterable[tuple[str, str]]) -> dict:
     return out
 
 
-def _is_public_ip(ip: str) -> bool:
-    """
-    SSRF guard: allow only globally-routable IPs by default.
-    Blocks loopback/private/link-local/multicast/reserved/CGNAT/etc.
-    """
-    try:
-        addr = ipaddress.ip_address(ip)
-    except ValueError:
-        return False
-
-    # Hard block common metadata endpoint even if classification changes
-    if str(addr) == "169.254.169.254":
-        return False
-
-    return bool(getattr(addr, "is_global", False))
-
-
-def _resolve_all_ips(host: str) -> set[str]:
-    """Resolve hostname to all IP addresses."""
-    ips: set[str] = set()
-    try:
-        for family, _type, _proto, _canon, sockaddr in socket.getaddrinfo(host, None):
-            if family == socket.AF_INET or family == socket.AF_INET6:
-                ips.add(sockaddr[0])
-    except Exception:
-        return set()
-    return ips
-
-
 def _validate_url_for_ssrf(raw_url: str, allow_private: bool = False) -> None:
     """
-    Validate URL to prevent SSRF attacks.
+    Validate URL to prevent SSRF attacks using DNS pinning.
+
+    This function uses the dns_pinning module for DNS rebinding protection.
+    DNS is resolved and pinned, preventing attackers from changing
+    DNS records between validation and actual connection.
+
     Raises HTTPException if URL is invalid or points to private resources.
     """
+    from src.sec_scanner.dns_pinning import is_public_ip, resolve_and_pin
+
     if not raw_url or not raw_url.strip():
         raise HTTPException(status_code=400, detail="URL is required")
 
@@ -267,21 +265,24 @@ def _validate_url_for_ssrf(raw_url: str, allow_private: bool = False) -> None:
     # Check if hostname is an IP address
     try:
         ip_addr = ipaddress.ip_address(hostname)
-        if not _is_public_ip(str(ip_addr)):
+        if not is_public_ip(str(ip_addr)):
             raise HTTPException(status_code=400, detail="Private targets are not allowed")
         return
     except ValueError:
-        # Not an IP, resolve DNS
+        # Not an IP, resolve DNS with pinning
         pass
 
-    # Resolve DNS and check all IPs
-    ips = _resolve_all_ips(hostname)
-    if not ips:
-        raise HTTPException(status_code=400, detail="Failed to resolve hostname")
-
-    for ip in ips:
-        if not _is_public_ip(ip):
+    # Resolve DNS with pinning and validate all IPs are public
+    # This pins the DNS resolution to prevent DNS rebinding attacks
+    try:
+        entry = resolve_and_pin(hostname, validate_public=True)
+        logger.debug(f"DNS pinned for {hostname}: {entry.all_addresses}")
+    except ValueError as e:
+        if "private" in str(e).lower():
             raise HTTPException(status_code=400, detail="Private targets are not allowed")
+        if "resolve" in str(e).lower() or "DNS" in str(e):
+            raise HTTPException(status_code=400, detail="Failed to resolve hostname")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.api_route("/web-check/{path:path}", methods=["GET", "HEAD", "OPTIONS"])
@@ -352,3 +353,113 @@ async def web_check_proxy(path: str, request: Request):
         headers=response_headers,
         media_type=media_type,
     )
+
+
+# --- WebSocket endpoint for real-time progress ---
+
+
+@app.websocket("/ws/audits/{audit_id}/progress")
+async def websocket_audit_progress(websocket: WebSocket, audit_id: str):
+    """
+    WebSocket endpoint for real-time audit progress updates.
+
+    Connect to receive live progress updates for a specific audit.
+    Messages are JSON with the following structure:
+
+    Progress update:
+    {
+        "type": "progress",
+        "audit_id": "...",
+        "step_name": "ssl_scan",
+        "step_status": "running",
+        "step_progress": 45,
+        "overall_progress": 30,
+        "message": "Checking SSL certificate...",
+        "timestamp": "2026-02-01T12:00:00Z"
+    }
+
+    Scan complete:
+    {
+        "type": "complete",
+        "audit_id": "...",
+        "status": "completed",
+        "score": 85,
+        "timestamp": "2026-02-01T12:05:00Z"
+    }
+
+    Connection will be closed when:
+    - Scan completes (after sending 'complete' message)
+    - Client disconnects
+    - Server shuts down
+    """
+    # Validate audit_id format (basic UUID check)
+    if not audit_id or len(audit_id) < 8:
+        await websocket.close(code=4000, reason="Invalid audit_id")
+        return
+
+    # Check if audit exists
+    audit = sec_db.get_audit(audit_id)
+    if not audit:
+        await websocket.close(code=4004, reason="Audit not found")
+        return
+
+    # Accept connection and register
+    await ws_manager.connect(websocket, audit_id)
+
+    try:
+        # Send initial state if audit is already in progress
+        if audit.get("status") == "running":
+            progress_steps = sec_db.get_scan_progress(audit_id)
+            if progress_steps:
+                # Calculate overall progress
+                total_steps = len(progress_steps)
+                completed_steps = sum(1 for s in progress_steps if s["step_status"] == "completed")
+                running_step = next(
+                    (s for s in progress_steps if s["step_status"] == "running"), None
+                )
+
+                if running_step:
+                    step_prog = running_step.get("step_progress") or 0
+                    overall = int(
+                        (completed_steps / total_steps) * 100 + (step_prog / total_steps)
+                    )
+                else:
+                    overall = int((completed_steps / total_steps) * 100) if total_steps else 0
+
+                # Send current state
+                await websocket.send_json({
+                    "type": "initial_state",
+                    "audit_id": audit_id,
+                    "status": audit.get("status"),
+                    "steps": progress_steps,
+                    "overall_progress": overall,
+                })
+        elif audit.get("status") in ("completed", "failed"):
+            # Audit already finished, send complete message and close
+            await websocket.send_json({
+                "type": "complete",
+                "audit_id": audit_id,
+                "status": audit.get("status"),
+                "score": audit.get("score"),
+            })
+            await websocket.close(code=1000, reason="Audit already completed")
+            return
+
+        # Keep connection alive and wait for messages from client
+        # (mainly pings or disconnect signals)
+        while True:
+            try:
+                # Wait for any message from client (ping/pong handling)
+                data = await websocket.receive_text()
+                # Handle ping
+                if data == "ping":
+                    await websocket.send_text("pong")
+            except WebSocketDisconnect:
+                break
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.error(f"WebSocket error for audit {audit_id}: {e}")
+    finally:
+        ws_manager.disconnect(websocket, audit_id)

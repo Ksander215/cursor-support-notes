@@ -78,7 +78,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
   </Card>
 
   <script type="module" is:inline>
-    import { makeClient } from "/src/lib/api.ts";
+    import { makeClient, AuditProgressWebSocket } from "/src/lib/api.ts";
     import { getApiBaseUrl, getApiKey } from "/src/lib/storage.ts";
     import { renderTimeline, showTimelineLoading } from "/src/components/TimelineChart.astro";
     import { renderVulnerabilityChart, showVulnerabilityLoading } from "/src/components/VulnerabilityChart.astro";
@@ -110,6 +110,8 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     const elExportMarkdownBtn = document.getElementById("exportMarkdownBtn");
 
     let progressPollInterval: number | null = null;
+    let progressWebSocket: AuditProgressWebSocket | null = null;
+    let currentProgressSteps: any[] = []; // Track steps for WebSocket updates
 
     function setEmpty(isEmpty) {
       const box = document.getElementById("emptyBox");
@@ -351,6 +353,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
       if (!elProgressSection) return;
       try {
         const progress = await client().getAuditProgress(String(auditId), currentApiKey());
+        currentProgressSteps = progress.steps || [];
         renderProgress("progressContainer", progress);
 
         // Stop polling if audit is completed or failed
@@ -369,24 +372,105 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
       }
     }
 
+    function handleWebSocketMessage(data) {
+      if (!elProgressSection) return;
+
+      if (data.type === "initial_state") {
+        // Initial state from WebSocket
+        currentProgressSteps = data.steps || [];
+        renderProgress("progressContainer", {
+          audit_id: data.audit_id,
+          overall_status: data.status,
+          steps: currentProgressSteps,
+          overall_progress: data.overall_progress,
+        });
+      } else if (data.type === "progress") {
+        // Update specific step
+        const stepIndex = currentProgressSteps.findIndex(s => s.step_name === data.step_name);
+        const updatedStep = {
+          step_name: data.step_name,
+          step_status: data.step_status,
+          step_progress: data.step_progress,
+          step_message: data.message,
+        };
+
+        if (stepIndex >= 0) {
+          currentProgressSteps[stepIndex] = { ...currentProgressSteps[stepIndex], ...updatedStep };
+        } else {
+          currentProgressSteps.push(updatedStep);
+        }
+
+        renderProgress("progressContainer", {
+          audit_id: data.audit_id,
+          overall_status: "running",
+          steps: currentProgressSteps,
+          overall_progress: data.overall_progress,
+        });
+      } else if (data.type === "complete") {
+        // Scan completed
+        console.log("[Progress] Scan complete:", data.status, "score:", data.score);
+        stopProgressPolling();
+
+        // Reload detail to show final state
+        setTimeout(() => {
+          const id = selectedId();
+          if (id) loadDetail(id);
+        }, 500);
+      }
+    }
+
     function startProgressPolling(auditId) {
-      stopProgressPolling(); // Clear any existing interval
+      stopProgressPolling(); // Clear any existing connection/interval
 
-      // Load immediately
+      // Show loading state
       showProgressLoading("progressContainer");
-      loadProgress(auditId);
+      currentProgressSteps = [];
 
-      // Poll every 2 seconds
+      // Try WebSocket first
+      try {
+        progressWebSocket = new AuditProgressWebSocket(
+          currentApiBase(),
+          String(auditId),
+          handleWebSocketMessage,
+          (error) => {
+            console.warn("[WebSocket] Error, falling back to polling:", error.message);
+            // Fall back to polling on WebSocket error
+            if (!progressPollInterval) {
+              startPollingFallback(auditId);
+            }
+          }
+        );
+        progressWebSocket.connect();
+        console.log("[Progress] Using WebSocket for real-time updates");
+
+        // Also load initial state via REST (WebSocket may take a moment)
+        loadProgress(auditId);
+      } catch (e) {
+        console.warn("[WebSocket] Failed to create, using polling:", e);
+        startPollingFallback(auditId);
+      }
+    }
+
+    function startPollingFallback(auditId) {
+      console.log("[Progress] Using polling fallback (2s interval)");
+      loadProgress(auditId);
       progressPollInterval = window.setInterval(() => {
         loadProgress(auditId);
       }, 2000);
     }
 
     function stopProgressPolling() {
+      // Close WebSocket if open
+      if (progressWebSocket) {
+        progressWebSocket.close();
+        progressWebSocket = null;
+      }
+      // Clear polling interval if active
       if (progressPollInterval !== null) {
         clearInterval(progressPollInterval);
         progressPollInterval = null;
       }
+      currentProgressSteps = [];
     }
 
     function selectedId() {

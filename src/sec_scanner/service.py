@@ -8,6 +8,7 @@ from . import db
 from .security_agent import SecurityAgentV2
 from .targets import normalize_target
 from .telegram_alerts import telegram_alerts
+from .websocket_manager import notify_progress, notify_scan_complete
 
 logger = logging.getLogger("sec_scanner")
 
@@ -19,6 +20,61 @@ def get_executor() -> ThreadPoolExecutor:
     if _executor is None:
         _executor = ThreadPoolExecutor(max_workers=4)
     return _executor
+
+
+def _update_progress(
+    audit_id: str,
+    step_name: str,
+    step_status: str,
+    step_progress: int | None = None,
+    step_message: str | None = None,
+    step_error: str | None = None,
+    total_steps: int = 5,
+    completed_steps: int = 0,
+) -> None:
+    """
+    Update progress in both database and WebSocket.
+    This ensures both polling clients and WebSocket clients receive updates.
+    """
+    # Update database first (authoritative source)
+    if step_error:
+        db.update_scan_progress_step(
+            audit_id=audit_id,
+            step_name=step_name,
+            step_status=step_status,
+            step_error=step_error,
+        )
+    else:
+        db.update_scan_progress_step(
+            audit_id=audit_id,
+            step_name=step_name,
+            step_status=step_status,
+            step_progress=step_progress,
+            step_message=step_message,
+        )
+
+    # Calculate overall progress
+    if step_status == "completed":
+        base_progress = ((completed_steps + 1) / total_steps) * 100
+    elif step_status == "running" and step_progress is not None:
+        base_progress = (completed_steps / total_steps) * 100 + (step_progress / total_steps)
+    else:
+        base_progress = (completed_steps / total_steps) * 100
+
+    overall_progress = min(int(base_progress), 100)
+
+    # Notify WebSocket clients (fire-and-forget, non-blocking)
+    try:
+        notify_progress(
+            audit_id=audit_id,
+            step_name=step_name,
+            step_status=step_status,
+            step_progress=step_progress,
+            message=step_message or step_error,
+            overall_progress=overall_progress,
+        )
+    except Exception as e:
+        logger.debug(f"Failed to notify WebSocket: {e}")
 
 
 def run_audit(audit_id: str, target: str, mode: str) -> None:
@@ -48,77 +104,85 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
         # SecurityAgentV2 автоматически выберет Nmap если доступен для normal/full режимов
         agent = SecurityAgentV2(mode=mode)
 
+        # Calculate total steps for progress
+        total_steps = len(steps)
+        completed_steps = 0
+
         # Run SSL scan with progress tracking
-        db.update_scan_progress_step(
-            audit_id=audit_id,
-            step_name="ssl",
-            step_status="running",
+        _update_progress(
+            audit_id, "ssl", "running",
             step_progress=0,
             step_message="Scanning SSL certificate...",
+            total_steps=total_steps,
+            completed_steps=completed_steps,
         )
         ssl_results = agent.scanners["ssl"].scan(host)
-        db.update_scan_progress_step(
-            audit_id=audit_id,
-            step_name="ssl",
-            step_status="completed",
+        _update_progress(
+            audit_id, "ssl", "completed",
             step_progress=100,
             step_message="SSL scan completed",
+            total_steps=total_steps,
+            completed_steps=completed_steps,
         )
+        completed_steps += 1
 
         # Run Headers scan with progress tracking
-        db.update_scan_progress_step(
-            audit_id=audit_id,
-            step_name="headers",
-            step_status="running",
+        _update_progress(
+            audit_id, "headers", "running",
             step_progress=0,
             step_message="Scanning security headers...",
+            total_steps=total_steps,
+            completed_steps=completed_steps,
         )
         headers_results = agent.scanners["headers"].scan(host)
-        db.update_scan_progress_step(
-            audit_id=audit_id,
-            step_name="headers",
-            step_status="completed",
+        _update_progress(
+            audit_id, "headers", "completed",
             step_progress=100,
             step_message="Security headers scan completed",
+            total_steps=total_steps,
+            completed_steps=completed_steps,
         )
+        completed_steps += 1
 
         # Run Port scan if needed
         port_results = None
         if mode in ["normal", "full"]:
-            db.update_scan_progress_step(
-                audit_id=audit_id,
-                step_name="ports",
-                step_status="running",
+            _update_progress(
+                audit_id, "ports", "running",
                 step_progress=0,
                 step_message="Scanning open ports...",
+                total_steps=total_steps,
+                completed_steps=completed_steps,
             )
             port_results = agent.scanners["ports"].scan(host)
-            db.update_scan_progress_step(
-                audit_id=audit_id,
-                step_name="ports",
-                step_status="completed",
+            _update_progress(
+                audit_id, "ports", "completed",
                 step_progress=100,
                 step_message="Port scan completed",
+                total_steps=total_steps,
+                completed_steps=completed_steps,
             )
+            completed_steps += 1
 
         # Run Web Vulnerability scan if needed
         web_results = None
         if mode == "full":
-            db.update_scan_progress_step(
-                audit_id=audit_id,
-                step_name="web_vulnerabilities",
-                step_status="running",
+            _update_progress(
+                audit_id, "web_vulnerabilities", "running",
                 step_progress=0,
                 step_message="Scanning web vulnerabilities...",
+                total_steps=total_steps,
+                completed_steps=completed_steps,
             )
             web_results = agent.scanners["web"].light_scan(host)
-            db.update_scan_progress_step(
-                audit_id=audit_id,
-                step_name="web_vulnerabilities",
-                step_status="completed",
+            _update_progress(
+                audit_id, "web_vulnerabilities", "completed",
                 step_progress=100,
                 step_message="Web vulnerability scan completed",
+                total_steps=total_steps,
+                completed_steps=completed_steps,
             )
+            completed_steps += 1
 
         # Build results similar to SecurityAgentV2.audit_domain
         results = {
@@ -183,21 +247,22 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
         results["recommendations"] = agent.generate_recommendations(results["categories"])
 
         # Generate report with progress tracking
-        db.update_scan_progress_step(
-            audit_id=audit_id,
-            step_name="report",
-            step_status="running",
+        _update_progress(
+            audit_id, "report", "running",
             step_progress=0,
             step_message="Generating report...",
+            total_steps=total_steps,
+            completed_steps=completed_steps,
         )
         results["report_md"] = agent.generate_comprehensive_report(results)
-        db.update_scan_progress_step(
-            audit_id=audit_id,
-            step_name="report",
-            step_status="completed",
+        _update_progress(
+            audit_id, "report", "completed",
             step_progress=100,
             step_message="Report generated",
+            total_steps=total_steps,
+            completed_steps=completed_steps,
         )
+        completed_steps += 1
 
         # Get audit row to find tenant_id
         audit_row = db.get_audit(audit_id)
@@ -211,6 +276,16 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
             report_md=results.get("report_md"),
         )
         logger.info("Audit completed: %s score=%s", audit_id, results.get("overall_score"))
+
+        # Notify WebSocket clients that scan is complete
+        try:
+            notify_scan_complete(
+                audit_id=audit_id,
+                status="completed",
+                score=results.get("overall_score"),
+            )
+        except Exception as e:
+            logger.debug(f"Failed to notify WebSocket completion: {e}")
 
         # Send Telegram alert for scan completion (sync wrapper)
         try:
@@ -279,6 +354,16 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
         except Exception:
             pass  # Don't fail if progress update fails
         db.mark_failed(audit_id, str(e))
+
+        # Notify WebSocket clients that scan failed
+        try:
+            notify_scan_complete(
+                audit_id=audit_id,
+                status="failed",
+                score=None,
+            )
+        except Exception:
+            pass  # Don't fail if WebSocket notification fails
 
 
 def _trigger_scan_notifications(
