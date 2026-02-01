@@ -6,6 +6,7 @@ import EmptyState from "../../components/ui/EmptyState.astro";
 import ErrorState from "../../components/ui/ErrorState.astro";
 import Input from "../../components/ui/Input.astro";
 import QuotaDisplay from "../../components/QuotaDisplay.astro";
+import OnboardingWizard from "../../components/OnboardingWizard.astro";
 ---
 
 <AppShell title="Dashboard · sec-scanner.pro" description="Audits dashboard" active="dashboard">
@@ -69,6 +70,9 @@ import QuotaDisplay from "../../components/QuotaDisplay.astro";
     </div>
     <div id="list" style="margin-top: var(--space-3); display:grid; gap: 10px;"></div>
   </Card>
+
+  <!-- Onboarding wizard for new users -->
+  <OnboardingWizard />
 
   <script type="module" is:inline>
     import { makeClient } from "/src/lib/api.ts";

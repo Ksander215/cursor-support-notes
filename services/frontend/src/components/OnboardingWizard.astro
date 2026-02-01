@@ -1,0 +1,606 @@
+---
+// OnboardingWizard - Multi-step wizard for new users
+// Shows on first visit, guides through first security scan
+---
+
+<div id="onboardingWizard" class="wizard-overlay" style="display: none;">
+  <div class="wizard-container" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
+    <!-- Step indicators -->
+    <div class="wizard-steps">
+      <div class="step-indicator active" data-step="1">
+        <span class="step-number">1</span>
+        <span class="step-label">Welcome</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-indicator" data-step="2">
+        <span class="step-number">2</span>
+        <span class="step-label">Target</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step-indicator" data-step="3">
+        <span class="step-number">3</span>
+        <span class="step-label">Scan</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Welcome -->
+    <div class="wizard-step active" data-step="1">
+      <div class="wizard-icon">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <h2 id="wizard-title" class="wizard-title">Welcome to sec-scanner.pro</h2>
+      <p class="wizard-description">
+        Your comprehensive security scanning platform. We help you identify vulnerabilities, 
+        analyze SSL certificates, check security headers, and more.
+      </p>
+      <div class="wizard-features">
+        <div class="feature">
+          <span class="feature-icon">🔒</span>
+          <span>SSL/TLS Analysis</span>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">🛡️</span>
+          <span>Security Headers</span>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">🔍</span>
+          <span>Vulnerability Detection</span>
+        </div>
+        <div class="feature">
+          <span class="feature-icon">📊</span>
+          <span>Detailed Reports</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Enter Target -->
+    <div class="wizard-step" data-step="2">
+      <div class="wizard-icon">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="12" cy="12" r="6"/>
+          <circle cx="12" cy="12" r="2"/>
+        </svg>
+      </div>
+      <h2 class="wizard-title">Enter Your Target</h2>
+      <p class="wizard-description">
+        Enter a domain, IP address, or URL to scan. We'll analyze its security configuration 
+        and provide a detailed report.
+      </p>
+      <div class="wizard-input-group">
+        <input 
+          type="text" 
+          id="wizardTarget" 
+          class="wizard-input"
+          placeholder="example.com"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div class="input-hint">Enter a public domain or IP address</div>
+      </div>
+    </div>
+
+    <!-- Step 3: Choose Scan Mode & Start -->
+    <div class="wizard-step" data-step="3">
+      <div class="wizard-icon">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+      </div>
+      <h2 class="wizard-title">Choose Scan Mode</h2>
+      <p class="wizard-description">
+        Select how thorough you want the scan to be.
+      </p>
+      <div class="wizard-modes">
+        <label class="mode-option selected" data-mode="safe">
+          <input type="radio" name="wizardMode" value="safe" checked />
+          <div class="mode-content">
+            <div class="mode-header">
+              <span class="mode-name">Safe Mode</span>
+              <span class="mode-badge">Recommended</span>
+            </div>
+            <p class="mode-desc">Quick scan: SSL, headers, basic checks. Non-intrusive.</p>
+          </div>
+        </label>
+        <label class="mode-option" data-mode="full">
+          <input type="radio" name="wizardMode" value="full" />
+          <div class="mode-content">
+            <div class="mode-header">
+              <span class="mode-name">Full Mode</span>
+              <span class="mode-badge mode-badge-full">Thorough</span>
+            </div>
+            <p class="mode-desc">Complete analysis: ports, vulnerabilities, advanced checks.</p>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Navigation buttons -->
+    <div class="wizard-footer">
+      <button type="button" class="btn btn-ghost" id="wizardSkip">Skip intro</button>
+      <div class="wizard-nav">
+        <button type="button" class="btn btn-ghost" id="wizardPrev" style="display: none;">
+          ← Back
+        </button>
+        <button type="button" class="btn btn-primary" id="wizardNext">
+          Continue →
+        </button>
+        <button type="button" class="btn btn-primary" id="wizardStart" style="display: none;">
+          Start Scan 🚀
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .wizard-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    animation: wizardFadeIn 0.3s ease-out;
+  }
+
+  .wizard-container {
+    width: min(520px, 100%);
+    max-height: calc(100vh - 2 * var(--space-4));
+    overflow-y: auto;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+    animation: wizardSlideIn 0.3s ease-out;
+  }
+
+  /* Step indicators */
+  .wizard-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-1);
+  }
+
+  .step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+  }
+
+  .step-indicator.active,
+  .step-indicator.completed {
+    opacity: 1;
+  }
+
+  .step-number {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--surface-2);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    transition: all 0.2s ease;
+  }
+
+  .step-indicator.active .step-number {
+    background: var(--color-accent-1);
+    color: white;
+  }
+
+  .step-indicator.completed .step-number {
+    background: var(--color-ok);
+    color: white;
+  }
+
+  .step-indicator.completed .step-number::after {
+    content: "✓";
+  }
+
+  .step-label {
+    font-size: var(--text-xs);
+    color: var(--text-2);
+  }
+
+  .step-connector {
+    width: 40px;
+    height: 2px;
+    background: var(--border);
+    margin: 0 var(--space-1);
+  }
+
+  /* Step content */
+  .wizard-step {
+    display: none;
+    padding: var(--space-5);
+    text-align: center;
+    animation: stepFadeIn 0.3s ease-out;
+  }
+
+  .wizard-step.active {
+    display: block;
+  }
+
+  .wizard-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto var(--space-4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-accent-1) 0%, var(--color-accent-2) 100%);
+    color: white;
+  }
+
+  .wizard-title {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    margin: 0 0 var(--space-3);
+    color: var(--text-1);
+  }
+
+  .wizard-description {
+    font-size: var(--text-md);
+    color: var(--text-2);
+    line-height: 1.6;
+    margin: 0 0 var(--space-4);
+  }
+
+  /* Features grid */
+  .wizard-features {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  .feature {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background: var(--surface-1);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+
+  .feature-icon {
+    font-size: 1.25em;
+  }
+
+  /* Input styling */
+  .wizard-input-group {
+    max-width: 360px;
+    margin: 0 auto;
+  }
+
+  .wizard-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-md);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    color: var(--text-1);
+    text-align: center;
+    transition: border-color 0.2s ease;
+  }
+
+  .wizard-input:focus {
+    outline: none;
+    border-color: var(--color-accent-1);
+  }
+
+  .input-hint {
+    margin-top: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--text-3);
+  }
+
+  /* Mode selection */
+  .wizard-modes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  .mode-option {
+    display: block;
+    padding: var(--space-4);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-1);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+  }
+
+  .mode-option:hover {
+    border-color: var(--color-accent-1);
+  }
+
+  .mode-option.selected {
+    border-color: var(--color-accent-1);
+    background: var(--surface-2);
+  }
+
+  .mode-option input {
+    display: none;
+  }
+
+  .mode-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .mode-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .mode-name {
+    font-weight: 600;
+    font-size: var(--text-md);
+  }
+
+  .mode-badge {
+    padding: 2px 8px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    background: var(--color-ok);
+    color: white;
+  }
+
+  .mode-badge-full {
+    background: var(--color-warn);
+  }
+
+  .mode-desc {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--text-2);
+  }
+
+  /* Footer */
+  .wizard-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4);
+    border-top: 1px solid var(--border);
+    background: var(--surface-1);
+  }
+
+  .wizard-nav {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  /* Animations */
+  @keyframes wizardFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes wizardSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-30px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes stepFadeIn {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 560px) {
+    .wizard-container {
+      width: 100%;
+      max-height: 100vh;
+      border-radius: 0;
+    }
+
+    .wizard-overlay {
+      padding: 0;
+    }
+
+    .wizard-features {
+      grid-template-columns: 1fr;
+    }
+
+    .wizard-steps {
+      flex-wrap: wrap;
+    }
+
+    .step-connector {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  // Onboarding wizard functionality
+  const STORAGE_KEY = "sec_scanner_onboarding_completed";
+  
+  function hasCompletedOnboarding(): boolean {
+    try {
+      return localStorage.getItem(STORAGE_KEY) === "true";
+    } catch {
+      return false;
+    }
+  }
+
+  function markOnboardingComplete(): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, "true");
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  function initOnboardingWizard(): void {
+    const wizard = document.getElementById("onboardingWizard");
+    if (!wizard) return;
+
+    // Check if user has completed onboarding
+    if (hasCompletedOnboarding()) {
+      wizard.style.display = "none";
+      return;
+    }
+
+    // Show wizard
+    wizard.style.display = "flex";
+
+    let currentStep = 1;
+    const totalSteps = 3;
+
+    const steps = wizard.querySelectorAll(".wizard-step");
+    const indicators = wizard.querySelectorAll(".step-indicator");
+    const prevBtn = document.getElementById("wizardPrev") as HTMLButtonElement;
+    const nextBtn = document.getElementById("wizardNext") as HTMLButtonElement;
+    const startBtn = document.getElementById("wizardStart") as HTMLButtonElement;
+    const skipBtn = document.getElementById("wizardSkip") as HTMLButtonElement;
+    const targetInput = document.getElementById("wizardTarget") as HTMLInputElement;
+    const modeOptions = wizard.querySelectorAll(".mode-option");
+
+    function updateUI(): void {
+      // Update steps
+      steps.forEach((step, index) => {
+        step.classList.toggle("active", index + 1 === currentStep);
+      });
+
+      // Update indicators
+      indicators.forEach((indicator, index) => {
+        indicator.classList.remove("active", "completed");
+        if (index + 1 === currentStep) {
+          indicator.classList.add("active");
+        } else if (index + 1 < currentStep) {
+          indicator.classList.add("completed");
+        }
+      });
+
+      // Update buttons
+      if (prevBtn) prevBtn.style.display = currentStep > 1 ? "inline-flex" : "none";
+      if (nextBtn) nextBtn.style.display = currentStep < totalSteps ? "inline-flex" : "none";
+      if (startBtn) startBtn.style.display = currentStep === totalSteps ? "inline-flex" : "none";
+    }
+
+    function goToStep(step: number): void {
+      if (step < 1 || step > totalSteps) return;
+      currentStep = step;
+      updateUI();
+    }
+
+    function closeWizard(): void {
+      markOnboardingComplete();
+      wizard.style.animation = "wizardFadeIn 0.2s ease-out reverse";
+      setTimeout(() => {
+        wizard.style.display = "none";
+      }, 200);
+    }
+
+    function startScan(): void {
+      const target = targetInput?.value?.trim();
+      const mode = (wizard.querySelector('input[name="wizardMode"]:checked') as HTMLInputElement)?.value || "safe";
+
+      if (!target) {
+        targetInput?.focus();
+        targetInput?.classList.add("error");
+        setTimeout(() => targetInput?.classList.remove("error"), 1000);
+        return;
+      }
+
+      // Close wizard first
+      closeWizard();
+
+      // Fill in the dashboard form and submit
+      const dashboardTarget = document.getElementById("target") as HTMLInputElement;
+      const dashboardMode = document.getElementById("mode") as HTMLSelectElement;
+      const dashboardForm = document.getElementById("createForm") as HTMLFormElement;
+
+      if (dashboardTarget) dashboardTarget.value = target;
+      if (dashboardMode) dashboardMode.value = mode;
+
+      // Trigger form submission
+      if (dashboardForm) {
+        dashboardForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      }
+    }
+
+    // Event listeners
+    prevBtn?.addEventListener("click", () => goToStep(currentStep - 1));
+    nextBtn?.addEventListener("click", () => {
+      // Validate step 2
+      if (currentStep === 2 && !targetInput?.value?.trim()) {
+        targetInput?.focus();
+        return;
+      }
+      goToStep(currentStep + 1);
+    });
+    startBtn?.addEventListener("click", startScan);
+    skipBtn?.addEventListener("click", closeWizard);
+
+    // Mode selection
+    modeOptions.forEach(option => {
+      option.addEventListener("click", () => {
+        modeOptions.forEach(o => o.classList.remove("selected"));
+        option.classList.add("selected");
+      });
+    });
+
+    // Enter key handling
+    targetInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (targetInput.value.trim()) {
+          goToStep(currentStep + 1);
+        }
+      }
+    });
+
+    // Initialize UI
+    updateUI();
+  }
+
+  // Initialize on DOM ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initOnboardingWizard);
+  } else {
+    initOnboardingWizard();
+  }
+</script>
