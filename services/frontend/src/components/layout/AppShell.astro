@@ -6,6 +6,17 @@ const {
   description = "Unified security scanning dashboard",
   active = "dashboard",
 } = Astro.props;
+
+const navItems = [
+  { href: "/app/dashboard", label: "Dashboard", icon: "home", key: "dashboard" },
+  { href: "/app/audits", label: "Audits", icon: "list", key: "audits" },
+  { href: "/app/settings", label: "Settings", icon: "settings", key: "settings" },
+];
+
+const externalLinks = [
+  { href: "https://api.sec-scanner.pro/web-check/", label: "Web-Check", icon: "external" },
+  { href: "https://api.sec-scanner.pro/docs", label: "API Docs", icon: "book" },
+];
 ---
 
 <Base title={title} description={description}>
@@ -18,79 +29,456 @@ const {
         <span class="brand-name truncate">sec-scanner.pro</span>
       </a>
       <div class="nav-right">
+        <!-- Desktop navigation -->
         <div class="nav-actions">
-          <a
-            class={`btn ${active === "dashboard" ? "btn-primary" : ""}`}
-            href="/app/dashboard"
-            aria-current={active === "dashboard" ? "page" : undefined}
-          >
-            Dashboard
-          </a>
-          <a
-            class={`btn ${active === "audits" ? "btn-primary" : ""}`}
-            href="/app/audits"
-            aria-current={active === "audits" ? "page" : undefined}
-          >
-            Audits
-          </a>
-          <a
-            class={`btn ${active === "settings" ? "btn-primary" : ""}`}
-            href="/app/settings"
-            aria-current={active === "settings" ? "page" : undefined}
-          >
-            Settings
-          </a>
-          <a class="btn" href="https://api.sec-scanner.pro/web-check/" target="_blank" rel="noreferrer">Web-Check</a>
-          <a class="btn" href="https://api.sec-scanner.pro/docs" target="_blank" rel="noreferrer">API Docs</a>
+          {navItems.map((item) => (
+            <a
+              class={`btn ${active === item.key ? "btn-primary" : ""}`}
+              href={item.href}
+              aria-current={active === item.key ? "page" : undefined}
+            >
+              {item.label}
+            </a>
+          ))}
+          {externalLinks.map((item) => (
+            <a class="btn" href={item.href} target="_blank" rel="noreferrer">
+              {item.label}
+            </a>
+          ))}
           <button class="btn" data-theme-toggle type="button">Theme</button>
         </div>
 
-        <details class="nav-menu">
-          <summary class="btn" aria-label="Open menu">Menu</summary>
-          <div class="panel nav-menu-panel">
-            <a
-              class={`btn ${active === "dashboard" ? "btn-primary" : "btn-ghost"}`}
-              href="/app/dashboard"
-              aria-current={active === "dashboard" ? "page" : undefined}
-            >
-              Dashboard
-            </a>
-            <a
-              class={`btn ${active === "audits" ? "btn-primary" : "btn-ghost"}`}
-              href="/app/audits"
-              aria-current={active === "audits" ? "page" : undefined}
-            >
-              Audits
-            </a>
-            <a
-              class={`btn ${active === "settings" ? "btn-primary" : "btn-ghost"}`}
-              href="/app/settings"
-              aria-current={active === "settings" ? "page" : undefined}
-            >
-              Settings
-            </a>
-            <a class="btn btn-ghost" href="https://api.sec-scanner.pro/web-check/" target="_blank" rel="noreferrer">Web-Check</a>
-            <a class="btn btn-ghost" href="https://api.sec-scanner.pro/docs" target="_blank" rel="noreferrer">API Docs</a>
-            <button class="btn btn-ghost" data-theme-toggle type="button">Theme</button>
-          </div>
-        </details>
+        <!-- Mobile burger button -->
+        <button
+          class="mobile-menu-btn"
+          id="mobileMenuBtn"
+          type="button"
+          aria-label="Open navigation menu"
+          aria-expanded="false"
+          aria-controls="mobileMenu"
+        >
+          <span class="burger-icon">
+            <span class="burger-line"></span>
+            <span class="burger-line"></span>
+            <span class="burger-line"></span>
+          </span>
+        </button>
       </div>
     </nav>
   </header>
+
+  <!-- Mobile slide-out menu -->
+  <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+  <aside class="mobile-menu" id="mobileMenu" aria-label="Mobile navigation">
+    <div class="mobile-menu-header">
+      <span class="mobile-menu-title">Menu</span>
+      <button
+        class="mobile-menu-close"
+        id="mobileMenuClose"
+        type="button"
+        aria-label="Close navigation menu"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <nav class="mobile-menu-nav">
+      <div class="mobile-menu-section">
+        <div class="mobile-menu-section-title">Navigation</div>
+        {navItems.map((item) => (
+          <a
+            class={`mobile-menu-link ${active === item.key ? "active" : ""}`}
+            href={item.href}
+            aria-current={active === item.key ? "page" : undefined}
+          >
+            <span class="mobile-menu-icon">
+              {item.icon === "home" && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                  <polyline points="9,22 9,12 15,12 15,22"/>
+                </svg>
+              )}
+              {item.icon === "list" && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                  <polyline points="14,2 14,8 20,8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10,9 9,9 8,9"/>
+                </svg>
+              )}
+              {item.icon === "settings" && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+              )}
+            </span>
+            <span>{item.label}</span>
+          </a>
+        ))}
+      </div>
+      <div class="mobile-menu-section">
+        <div class="mobile-menu-section-title">Resources</div>
+        {externalLinks.map((item) => (
+          <a
+            class="mobile-menu-link"
+            href={item.href}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span class="mobile-menu-icon">
+              {item.icon === "external" && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                  <polyline points="15,3 21,3 21,9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+              )}
+              {item.icon === "book" && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                </svg>
+              )}
+            </span>
+            <span>{item.label}</span>
+            <svg class="external-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+              <polyline points="15,3 21,3 21,9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+          </a>
+        ))}
+      </div>
+      <div class="mobile-menu-section">
+        <div class="mobile-menu-section-title">Preferences</div>
+        <button class="mobile-menu-link" data-theme-toggle type="button">
+          <span class="mobile-menu-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+          </span>
+          <span>Toggle Theme</span>
+        </button>
+      </div>
+    </nav>
+    <div class="mobile-menu-footer">
+      <span class="mobile-menu-version">sec-scanner.pro</span>
+    </div>
+  </aside>
 
   <main class="container fade-in main">
     <slot />
   </main>
 </Base>
 
+<style>
+  /* Mobile menu button */
+  .mobile-menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-1);
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .mobile-menu-btn:hover {
+    background: var(--surface-2);
+  }
+
+  .mobile-menu-btn:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .burger-icon {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 20px;
+  }
+
+  .burger-line {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: var(--text-1);
+    border-radius: 1px;
+    transition: all 0.3s ease;
+  }
+
+  .mobile-menu-btn[aria-expanded="true"] .burger-line:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+
+  .mobile-menu-btn[aria-expanded="true"] .burger-line:nth-child(2) {
+    opacity: 0;
+  }
+
+  .mobile-menu-btn[aria-expanded="true"] .burger-line:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  /* Overlay */
+  .mobile-menu-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .mobile-menu-overlay.active {
+    opacity: 1;
+  }
+
+  /* Slide-out menu */
+  .mobile-menu {
+    display: none;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    width: min(320px, 85vw);
+    background: var(--bg-2);
+    border-left: 1px solid var(--border);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    flex-direction: column;
+  }
+
+  .mobile-menu.active {
+    transform: translateX(0);
+  }
+
+  .mobile-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mobile-menu-title {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--text-1);
+  }
+
+  .mobile-menu-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-menu-close:hover {
+    background: var(--surface-1);
+    color: var(--text-1);
+  }
+
+  .mobile-menu-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-3);
+  }
+
+  .mobile-menu-section {
+    margin-bottom: var(--space-4);
+  }
+
+  .mobile-menu-section-title {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-3);
+  }
+
+  .mobile-menu-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-md);
+    font-weight: 500;
+    color: var(--text-2);
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-menu-link:hover {
+    background: var(--surface-1);
+    color: var(--text-1);
+  }
+
+  .mobile-menu-link.active {
+    background: var(--color-accent-1);
+    color: white;
+  }
+
+  .mobile-menu-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+  }
+
+  .external-icon {
+    margin-left: auto;
+    opacity: 0.5;
+  }
+
+  .mobile-menu-footer {
+    padding: var(--space-4);
+    border-top: 1px solid var(--border);
+  }
+
+  .mobile-menu-version {
+    font-size: var(--text-xs);
+    color: var(--text-3);
+  }
+
+  /* Responsive - show mobile menu below 780px */
+  @media (max-width: 780px) {
+    .nav-actions {
+      display: none;
+    }
+
+    .mobile-menu-btn {
+      display: flex;
+    }
+
+    .mobile-menu-overlay {
+      display: block;
+    }
+
+    .mobile-menu {
+      display: flex;
+    }
+  }
+
+  /* Prevent body scroll when menu is open */
+  :global(body.mobile-menu-open) {
+    overflow: hidden;
+  }
+</style>
+
 <script type="module" is:inline>
   import { getTheme, setTheme } from "/src/lib/storage.ts";
 
+  // Theme toggle
   document.querySelectorAll("[data-theme-toggle]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const cur = document.documentElement.getAttribute("data-theme") || getTheme() || "dark";
       const next = cur === "dark" ? "light" : "dark";
       setTheme(next);
+      // Close mobile menu after theme toggle
+      closeMobileMenu();
     });
   });
+
+  // Mobile menu functionality
+  const menuBtn = document.getElementById("mobileMenuBtn");
+  const menuClose = document.getElementById("mobileMenuClose");
+  const menu = document.getElementById("mobileMenu");
+  const overlay = document.getElementById("mobileMenuOverlay");
+
+  function openMobileMenu() {
+    if (!menu || !overlay || !menuBtn) return;
+    menu.classList.add("active");
+    overlay.classList.add("active");
+    menuBtn.setAttribute("aria-expanded", "true");
+    document.body.classList.add("mobile-menu-open");
+    // Focus on close button for accessibility
+    menuClose?.focus();
+  }
+
+  function closeMobileMenu() {
+    if (!menu || !overlay || !menuBtn) return;
+    menu.classList.remove("active");
+    overlay.classList.remove("active");
+    menuBtn.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("mobile-menu-open");
+  }
+
+  menuBtn?.addEventListener("click", () => {
+    const isExpanded = menuBtn.getAttribute("aria-expanded") === "true";
+    if (isExpanded) {
+      closeMobileMenu();
+    } else {
+      openMobileMenu();
+    }
+  });
+
+  menuClose?.addEventListener("click", closeMobileMenu);
+  overlay?.addEventListener("click", closeMobileMenu);
+
+  // Close on Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && menu?.classList.contains("active")) {
+      closeMobileMenu();
+      menuBtn?.focus();
+    }
+  });
+
+  // Close menu when clicking a link (navigation)
+  menu?.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      // Small delay to allow navigation to start
+      setTimeout(closeMobileMenu, 100);
+    });
+  });
+
+  // Handle swipe to close (optional enhancement)
+  let touchStartX = 0;
+  let touchEndX = 0;
+
+  menu?.addEventListener("touchstart", (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  }, { passive: true });
+
+  menu?.addEventListener("touchend", (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    // Swipe right to close (menu is on the right side)
+    if (touchEndX - touchStartX > 50) {
+      closeMobileMenu();
+    }
+  }, { passive: true });
 </script>
