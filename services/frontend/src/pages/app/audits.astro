@@ -81,6 +81,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     import { renderScoreBreakdown, showScoreBreakdownLoading } from "/src/components/ScoreBreakdown.astro";
     import { renderProgress, showProgressLoading } from "/src/components/ProgressIndicator.astro";
     import { skeletonAuditList, skeletonDetail } from "/src/lib/skeleton.ts";
+    import { escapeHtml } from "/src/lib/sanitize.ts";
 
     const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 
@@ -122,14 +123,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
       return makeClient(currentApiBase());
     }
 
-    function escapeHtml(s) {
-      return String(s ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
+    // escapeHtml is now imported from /src/lib/sanitize.ts
 
     // Enhanced error handling
     function setListError(error, retryFn) {
