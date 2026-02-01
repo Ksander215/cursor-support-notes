@@ -48,4 +48,3 @@ echo "ROOT_STATUS=$(curl -s -o /dev/null -w \"%{http_code}\" https://api.sec-sca
 echo "AUDITS_NO_KEY_STATUS=$(curl -s -o /dev/null -w \"%{http_code}\" https://api.sec-scanner.pro/api/v1/audits)"
 
 echo "[ok] Key stored at: $KEY_FILE (do not paste it into chat)"
-

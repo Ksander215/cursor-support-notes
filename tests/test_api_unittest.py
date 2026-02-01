@@ -13,7 +13,7 @@ class TestAPI(unittest.TestCase):
         # FastAPI TestClient uses Host: testserver by default (TrustedHostMiddleware)
         os.environ["SEC_SCANNER_ALLOWED_HOSTS"] = "testserver,localhost,127.0.0.1"
 
-        import app  # noqa: WPS433
+        import app
 
         cls.client = TestClient(app.app)
 
@@ -29,9 +29,7 @@ class TestAPI(unittest.TestCase):
 
     def test_create_audit_stubbed(self):
         with patch("src.sec_scanner.api.enqueue_audit", return_value="test-audit-id"):
-            r = self.client.post(
-                "/api/v1/audits", json={"target": "example.com", "mode": "safe"}
-            )
+            r = self.client.post("/api/v1/audits", json={"target": "example.com", "mode": "safe"})
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["audit_id"], "test-audit-id")
@@ -40,4 +38,3 @@ class TestAPI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

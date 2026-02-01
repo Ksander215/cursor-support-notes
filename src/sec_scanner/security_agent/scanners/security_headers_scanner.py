@@ -154,9 +154,8 @@ class SecurityHeadersScanner:
         except requests.exceptions.RequestException as e:
             return {
                 "success": False,
-                "error": f"Ошибка подключения: {str(e)}",
+                "error": f"Ошибка подключения: {e!s}",
                 "recommendations": ["Проверьте доступность сайта", "Проверьте настройки DNS"],
             }
-        except Exception as e:  # noqa: B110
-            return {"success": False, "error": f"Неожиданная ошибка: {str(e)}"}
-
+        except Exception as e:
+            return {"success": False, "error": f"Неожиданная ошибка: {e!s}"}

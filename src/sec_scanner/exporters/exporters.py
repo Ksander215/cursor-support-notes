@@ -1,7 +1,7 @@
 import json
 import logging
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("sec_scanner.exporters")
 
@@ -13,11 +13,11 @@ class ExportFormat(str, Enum):
 
 
 def export_audit_report(
-    audit_data: Dict[str, Any],
-    result_data: Optional[Dict[str, Any]],
-    report_md: Optional[str],
+    audit_data: dict[str, Any],
+    result_data: dict[str, Any] | None,
+    report_md: str | None,
     format: ExportFormat,
-) -> Tuple[bytes, str]:
+) -> tuple[bytes, str]:
     """
     Export audit report in specified format.
     Returns (content_bytes, content_type).
@@ -33,13 +33,13 @@ def export_audit_report(
 
 
 def _export_pdf(
-    audit_data: Dict[str, Any],
-    result_data: Optional[Dict[str, Any]],
-    report_md: Optional[str],
-) -> Tuple[bytes, str]:
+    audit_data: dict[str, Any],
+    result_data: dict[str, Any] | None,
+    report_md: str | None,
+) -> tuple[bytes, str]:
     """Export report as PDF using weasyprint"""
     try:
-        from weasyprint import HTML, CSS
+        from weasyprint import CSS, HTML
         from weasyprint.text.fonts import FontConfiguration
     except ImportError:
         logger.error("weasyprint not installed. Install with: pip install weasyprint")
@@ -56,9 +56,7 @@ def _export_pdf(
 
     # Generate PDF
     font_config = FontConfiguration()
-    pdf_bytes = HTML(string=html_content).write_pdf(
-        stylesheets=[css], font_config=font_config
-    )
+    pdf_bytes = HTML(string=html_content).write_pdf(stylesheets=[css], font_config=font_config)
 
     return pdf_bytes, "application/pdf"
 
@@ -73,17 +71,15 @@ def _export_pdf(
 
     # Generate PDF
     font_config = FontConfiguration()
-    pdf_bytes = HTML(string=html_content).write_pdf(
-        stylesheets=[css], font_config=font_config
-    )
+    pdf_bytes = HTML(string=html_content).write_pdf(stylesheets=[css], font_config=font_config)
 
     return pdf_bytes, "application/pdf"
 
 
 def _export_json(
-    audit_data: Dict[str, Any],
-    result_data: Optional[Dict[str, Any]],
-) -> Tuple[bytes, str]:
+    audit_data: dict[str, Any],
+    result_data: dict[str, Any] | None,
+) -> tuple[bytes, str]:
     """Export report as JSON"""
     export_data = {
         "audit": {
@@ -109,10 +105,10 @@ def _export_json(
 
 
 def _export_markdown(
-    audit_data: Dict[str, Any],
-    result_data: Optional[Dict[str, Any]],
-    report_md: Optional[str],
-) -> Tuple[bytes, str]:
+    audit_data: dict[str, Any],
+    result_data: dict[str, Any] | None,
+    report_md: str | None,
+) -> tuple[bytes, str]:
     """Export report as improved Markdown"""
     if report_md:
         # Enhance existing markdown
@@ -129,6 +125,7 @@ def _markdown_to_html(markdown_text: str) -> str:
     """Convert markdown to HTML"""
     try:
         import markdown
+
         html_body = markdown.markdown(markdown_text, extensions=["extra", "codehilite"])
         return f"<html><head><meta charset='utf-8'></head><body>{html_body}</body></html>"
     except ImportError:
@@ -138,6 +135,7 @@ def _markdown_to_html(markdown_text: str) -> str:
         html = html.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         # Convert markdown-like syntax
         import re
+
         html = re.sub(r"^# (.+)$", r"<h1>\1</h1>", html, flags=re.MULTILINE)
         html = re.sub(r"^## (.+)$", r"<h2>\1</h2>", html, flags=re.MULTILINE)
         html = re.sub(r"^### (.+)$", r"<h3>\1</h3>", html, flags=re.MULTILINE)
@@ -148,8 +146,8 @@ def _markdown_to_html(markdown_text: str) -> str:
 
 
 def _generate_html_from_data(
-    audit_data: Dict[str, Any],
-    result_data: Optional[Dict[str, Any]],
+    audit_data: dict[str, Any],
+    result_data: dict[str, Any] | None,
 ) -> str:
     """Generate HTML report from audit data"""
     target = audit_data.get("target", "Unknown")
@@ -190,8 +188,8 @@ def _generate_html_from_data(
 
 def _enhance_markdown(
     markdown_text: str,
-    audit_data: Dict[str, Any],
-    result_data: Optional[Dict[str, Any]],
+    audit_data: dict[str, Any],
+    result_data: dict[str, Any] | None,
 ) -> str:
     """Enhance existing markdown with additional metadata"""
     enhanced_parts = [markdown_text]
@@ -199,21 +197,23 @@ def _enhance_markdown(
     enhanced_parts.append("## 📊 Export Information\n")
     enhanced_parts.append(f"- **Audit ID:** `{audit_data.get('id', 'N/A')}`\n")
     enhanced_parts.append(f"- **Export Date:** {audit_data.get('completed_at', 'N/A')}\n")
-    
+
     if result_data:
         categories = result_data.get("categories", {})
         if categories:
             enhanced_parts.append("\n### Category Scores\n")
             for cat_name, cat_data in categories.items():
                 cat_score = cat_data.get("score", "N/A")
-                enhanced_parts.append(f"- **{cat_name.replace('_', ' ').title()}:** {cat_score}/100\n")
-    
+                enhanced_parts.append(
+                    f"- **{cat_name.replace('_', ' ').title()}:** {cat_score}/100\n"
+                )
+
     return "".join(enhanced_parts)
 
 
 def _generate_markdown_from_data(
-    audit_data: Dict[str, Any],
-    result_data: Optional[Dict[str, Any]],
+    audit_data: dict[str, Any],
+    result_data: dict[str, Any] | None,
 ) -> str:
     """Generate markdown report from audit data"""
     target = audit_data.get("target", "Unknown")

@@ -4,14 +4,12 @@ import os
 import secrets
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from . import db
-
 
 API_KEY_HEADER = "x-api-key"
 
@@ -23,9 +21,9 @@ class AuthContext:
     api_key_id: str
     api_key_prefix: str
     plan_code: str
-    requests_per_minute: Optional[int]
-    monthly_audits_quota: Optional[int]
-    concurrency_limit: Optional[int]
+    requests_per_minute: int | None
+    monthly_audits_quota: int | None
+    concurrency_limit: int | None
     is_admin: bool
 
 
@@ -56,7 +54,7 @@ def api_key_pepper() -> str:
     return os.getenv("SEC_SCANNER_API_KEY_PEPPER", "dev-insecure-pepper")
 
 
-def extract_api_key(request: Request) -> Optional[str]:
+def extract_api_key(request: Request) -> str | None:
     # Preferred: X-API-Key
     raw = request.headers.get(API_KEY_HEADER)
     if raw:
@@ -83,9 +81,9 @@ def generate_api_key() -> tuple[str, str, str, str]:
     return plain, hash_api_key(plain), plain[:12], plain[-4:]
 
 
-def month_bucket_start(now: Optional[datetime] = None) -> datetime:
-    n = now or datetime.now(timezone.utc)
-    return datetime(n.year, n.month, 1, tzinfo=timezone.utc)
+def month_bucket_start(now: datetime | None = None) -> datetime:
+    n = now or datetime.now(UTC)
+    return datetime(n.year, n.month, 1, tzinfo=UTC)
 
 
 _REDIS = None
@@ -129,7 +127,7 @@ async def enforce_rpm_or_raise(api_key_id: str, limit: int) -> None:
         return
 
 
-def load_auth_context_or_none(raw_key: str) -> Optional[AuthContext]:
+def load_auth_context_or_none(raw_key: str) -> AuthContext | None:
     # Static key mode (no DB needed)
     sk = static_api_key()
     if sk:
@@ -154,15 +152,28 @@ def load_auth_context_or_none(raw_key: str) -> Optional[AuthContext]:
     return AuthContext(**ctx)
 
 
+def _path_requires_auth(path: str) -> bool:
+    """Paths that require API key auth: /api/v1/*, /stripe/* and /payments/* except webhooks."""
+    if not path:
+        return False
+    if path.startswith("/api/v1"):
+        return True
+    if "/webhook" in path:
+        return False  # Stripe/YooKassa webhooks use signature, not API key
+    if path.startswith("/stripe") or path.startswith("/payments"):
+        return True
+    return False
+
+
 async def saas_http_middleware(request: Request, call_next):
     """
-    - Optional API key auth for /api/v1/*
+    - Optional API key auth for /api/v1/*, /stripe/*, /payments/* (except webhook paths).
     - If key present: validate, attach tenant context, enforce rpm, record request usage.
     - If key missing:
         - allow (default) OR reject if SEC_SCANNER_REQUIRE_API_KEY=true
     """
     path = request.url.path or ""
-    if not path.startswith("/api/v1"):
+    if not _path_requires_auth(path):
         return await call_next(request)
 
     raw_key = extract_api_key(request)
@@ -181,6 +192,7 @@ async def saas_http_middleware(request: Request, call_next):
     request.state.auth = auth
     request.state.tenant_id = auth.tenant_id
     request.state.api_key_id = auth.api_key_id
+    request.state.tenant_info = {"org_id": auth.org_id}
 
     if auth.requests_per_minute is not None:
         try:
@@ -201,4 +213,3 @@ async def saas_http_middleware(request: Request, call_next):
         pass
 
     return await call_next(request)
-

@@ -10,3 +10,7 @@ celery>=5.4.0
 redis>=5.0.0
 weasyprint>=60.0
 markdown>=3.5.0
+stripe>=7.0.0
+# Nmap integration (system dependency: nmap must be installed)
+# python-nmap is optional, we use subprocess for better control
+# Dependency scanning uses httpx (already included)

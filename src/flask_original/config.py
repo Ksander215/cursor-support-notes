@@ -54,9 +54,7 @@ class Config:
     # CSRF защита
     WTF_CSRF_ENABLED = True
     WTF_CSRF_SECRET_KEY = (
-        secrets.token_hex(32)
-        if not os.environ.get("FLASK_ENV") == "production"
-        else get_secret_key()
+        secrets.token_hex(32) if os.environ.get("FLASK_ENV") != "production" else get_secret_key()
     )
 
 

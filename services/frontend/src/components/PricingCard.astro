@@ -1,0 +1,152 @@
+---
+// Pricing card component
+import Card from "./ui/Card.astro";
+import Button from "./ui/Button.astro";
+import Badge from "./ui/Badge.astro";
+
+interface Props {
+  plan: {
+    code: string;
+    name: string;
+    price: string;
+    period?: string;
+    description: string;
+    features: string[];
+    cta: string;
+    ctaHref: string;
+    popular?: boolean;
+    badge?: string;
+  };
+}
+
+const { plan } = Astro.props;
+---
+
+<Card class={`pricing-card ${plan.popular ? "pricing-card--popular" : ""}`}>
+  {plan.badge && (
+    <div class="pricing-card__badge">
+      <Badge tone="ok">{plan.badge}</Badge>
+    </div>
+  )}
+  <div class="pricing-card__header">
+    <h3 class="pricing-card__name">{plan.name}</h3>
+    <div class="pricing-card__price">
+      <span class="pricing-card__amount">{plan.price}</span>
+      {plan.period && <span class="pricing-card__period">/{plan.period}</span>}
+    </div>
+    <p class="pricing-card__description">{plan.description}</p>
+  </div>
+  <ul class="pricing-card__features">
+    {plan.features.map((feature) => (
+      <li class="pricing-card__feature">
+        <span class="pricing-card__check" aria-hidden="true">✓</span>
+        <span>{feature}</span>
+      </li>
+    ))}
+  </ul>
+  <div class="pricing-card__footer">
+    <Button href={plan.ctaHref} variant={plan.popular ? "primary" : "secondary"} class="pricing-card__cta">
+      {plan.cta}
+    </Button>
+  </div>
+</Card>
+
+<style>
+  .pricing-card {
+    position: relative;
+    padding: var(--space-6);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .pricing-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .pricing-card--popular {
+    border: 2px solid var(--color-primary);
+  }
+
+  .pricing-card__badge {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+  }
+
+  .pricing-card__header {
+    margin-bottom: var(--space-5);
+  }
+
+  .pricing-card__name {
+    font-size: var(--text-xl);
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+    color: var(--text-1);
+  }
+
+  .pricing-card__price {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    margin-bottom: var(--space-3);
+  }
+
+  .pricing-card__amount {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--text-1);
+  }
+
+  .pricing-card__period {
+    font-size: var(--text-md);
+    color: var(--text-2);
+  }
+
+  .pricing-card__description {
+    font-size: var(--text-sm);
+    color: var(--text-2);
+    line-height: 1.5;
+  }
+
+  .pricing-card__features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--space-5);
+    flex-grow: 1;
+  }
+
+  .pricing-card__feature {
+    display: flex;
+    align-items: start;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    font-size: var(--text-sm);
+    color: var(--text-1);
+  }
+
+  .pricing-card__check {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-ok);
+    color: var(--color-neutral-0);
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .pricing-card__footer {
+    margin-top: auto;
+  }
+
+  .pricing-card__cta {
+    width: 100%;
+    justify-content: center;
+  }
+</style>

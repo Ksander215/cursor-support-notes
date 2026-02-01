@@ -58,4 +58,3 @@ $SUDO systemctl reload nginx
 echo "[5/5] done"
 echo "API: https://$API_DOMAIN"
 echo "Web-Check: https://$API_DOMAIN/web-check/"
-

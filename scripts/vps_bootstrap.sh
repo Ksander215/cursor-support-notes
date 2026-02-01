@@ -42,10 +42,13 @@ $SUDO ufw --force enable
 $SUDO ufw allow OpenSSH
 $SUDO ufw allow 'Nginx Full'
 
+echo "[4.5/6] fail2ban (optional - run scripts/vps_setup_fail2ban.sh after bootstrap)"
+# fail2ban setup is separate script to allow manual review
+# Run: sudo ./scripts/vps_setup_fail2ban.sh
+
 echo "[5/6] create app directory"
 $SUDO mkdir -p /opt/sec-scanner
 $SUDO chown -R "$USER:$USER" /opt/sec-scanner
 
 echo "[6/6] done"
 echo "Next: upload project to /opt/sec-scanner"
-

@@ -23,4 +23,3 @@ echo "[2/2] status"
 docker-compose -f docker-compose.prod.yml ps
 
 echo "API should be on :8000 (localhost). Next: nginx+ssl"
-

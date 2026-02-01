@@ -1,17 +1,17 @@
 import logging
 import os
-from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, Optional
+from datetime import datetime
+from typing import Any
 
 from . import db
 from .security_agent import SecurityAgentV2
 from .targets import normalize_target
-
+from .telegram_alerts import telegram_alerts
 
 logger = logging.getLogger("sec_scanner")
 
-_executor: Optional[ThreadPoolExecutor] = None
+_executor: ThreadPoolExecutor | None = None
 
 
 def get_executor() -> ThreadPoolExecutor:
@@ -27,7 +27,7 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
         db.mark_started(audit_id)
 
         logger.info("Audit started: %s target=%s mode=%s", audit_id, host, mode)
-        
+
         # Initialize progress steps based on mode
         steps = ["ssl", "headers"]
         if mode in ["normal", "full"]:
@@ -35,7 +35,7 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
         if mode == "full":
             steps.append("web_vulnerabilities")
         steps.append("report")
-        
+
         # Initialize all steps as pending
         for step_name in steps:
             db.create_scan_progress(
@@ -43,9 +43,11 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
                 step_name=step_name,
                 step_status="pending",
             )
-        
+
+        # Инициализируем агент с правильным режимом
+        # SecurityAgentV2 автоматически выберет Nmap если доступен для normal/full режимов
         agent = SecurityAgentV2(mode=mode)
-        
+
         # Run SSL scan with progress tracking
         db.update_scan_progress_step(
             audit_id=audit_id,
@@ -62,7 +64,7 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
             step_progress=100,
             step_message="SSL scan completed",
         )
-        
+
         # Run Headers scan with progress tracking
         db.update_scan_progress_step(
             audit_id=audit_id,
@@ -79,7 +81,7 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
             step_progress=100,
             step_message="Security headers scan completed",
         )
-        
+
         # Run Port scan if needed
         port_results = None
         if mode in ["normal", "full"]:
@@ -98,7 +100,7 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
                 step_progress=100,
                 step_message="Port scan completed",
             )
-        
+
         # Run Web Vulnerability scan if needed
         web_results = None
         if mode == "full":
@@ -117,7 +119,7 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
                 step_progress=100,
                 step_message="Web vulnerability scan completed",
             )
-        
+
         # Build results similar to SecurityAgentV2.audit_domain
         results = {
             "audit_id": f"{host}_{audit_id}",
@@ -126,23 +128,21 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
             "mode": mode,
             "categories": {},
         }
-        
+
         results["categories"]["ssl"] = {
             "scanner": "AdvancedSSLScanner",
             "results": ssl_results,
             "score": agent.calculate_ssl_score(ssl_results),
         }
-        
+
         results["categories"]["headers"] = {
             "scanner": "SecurityHeadersScanner",
             "results": headers_results,
             "score": (
-                headers_results.get("security_score", 0)
-                if headers_results.get("success")
-                else 0
+                headers_results.get("security_score", 0) if headers_results.get("success") else 0
             ),
         }
-        
+
         if mode in ["normal", "full"]:
             results["categories"]["ports"] = {
                 "scanner": "SafePortScanner",
@@ -159,13 +159,15 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
                 "skipped": "Port scanning disabled in safe mode",
                 "score": 50,
             }
-        
+
         if mode == "full":
             results["categories"]["web_vulnerabilities"] = {
                 "scanner": "WebVulnerabilityScanner",
                 "results": web_results,
                 "score": (
-                    web_results.get("security_score", 0) if web_results and web_results.get("success") else 0
+                    web_results.get("security_score", 0)
+                    if web_results and web_results.get("success")
+                    else 0
                 ),
             }
         else:
@@ -174,12 +176,12 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
                 "skipped": f"Web vulnerability scanning requires full mode (current: {mode})",
                 "score": 50,
             }
-        
+
         results["overall_score"] = agent.calculate_overall_score(results["categories"])
         results["risk_level"] = agent.determine_risk_level(results["overall_score"])
         results["critical_issues"] = agent.find_critical_issues(results["categories"])
         results["recommendations"] = agent.generate_recommendations(results["categories"])
-        
+
         # Generate report with progress tracking
         db.update_scan_progress_step(
             audit_id=audit_id,
@@ -210,11 +212,59 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
         )
         logger.info("Audit completed: %s score=%s", audit_id, results.get("overall_score"))
 
+        # Send Telegram alert for scan completion (sync wrapper)
+        try:
+            import asyncio
+
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            loop.run_until_complete(
+                telegram_alerts.send_scan_complete(
+                    audit_id=audit_id,
+                    target=target,
+                    risk_level=results.get("risk_level", "UNKNOWN"),
+                    score=results.get("overall_score"),
+                )
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send Telegram alert: {e}")
+
         # Trigger notifications if tenant_id is present
         if tenant_id:
             _trigger_scan_notifications(tenant_id, audit_id, target, results)
-    except Exception as e:  # noqa: B110
+    except Exception as e:
         logger.exception("Audit failed: %s", audit_id)
+
+        # Send Telegram alert for critical error (sync wrapper)
+        try:
+            import asyncio
+
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            loop.run_until_complete(
+                telegram_alerts.send_error(
+                    error=f"Audit scan failed: {audit_id}",
+                    details={
+                        "audit_id": audit_id,
+                        "target": target,
+                        "mode": mode,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                    critical=True,
+                )
+            )
+        except Exception as alert_error:
+            logger.warning(f"Failed to send Telegram alert: {alert_error}")
+
         # Mark current running step as failed
         try:
             progress_steps = db.get_scan_progress(audit_id)
@@ -231,19 +281,21 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
         db.mark_failed(audit_id, str(e))
 
 
-def _trigger_scan_notifications(tenant_id: int, audit_id: str, target: str, result: Dict[str, Any]) -> None:
+def _trigger_scan_notifications(
+    tenant_id: int, audit_id: str, target: str, result: dict[str, Any]
+) -> None:
     """Trigger notifications for scan completion and vulnerabilities"""
     import os
-    
+
     overall_score = result.get("overall_score")
     risk_level = result.get("risk_level", "").upper()
     critical_issues = result.get("critical_issues", [])
     critical_issues_count = len(critical_issues) if isinstance(critical_issues, list) else 0
-    
+
     # Build report URL (assuming API base URL from env or default)
     api_base = os.getenv("SEC_SCANNER_API_BASE_URL", "https://api.sec-scanner.pro")
     report_url = f"{api_base}/app/audits?id={audit_id}"
-    
+
     # Base notification data
     base_data = {
         "audit_id": audit_id,
@@ -252,17 +304,17 @@ def _trigger_scan_notifications(tenant_id: int, audit_id: str, target: str, resu
         "risk_level": risk_level,
         "report_url": report_url,
     }
-    
+
     # Check if Redis/Celery is available for async notifications
     redis_url = os.getenv("SEC_SCANNER_REDIS_URL", "").strip()
-    
+
     if redis_url:
         # Async path: use Celery task
         from .tasks import send_notification_task
-        
+
         # Send scan_completed notification
         send_notification_task.delay(tenant_id, "scan_completed", base_data)
-        
+
         # Send vulnerability notifications if found
         if critical_issues_count > 0:
             vulnerability_data = {
@@ -270,15 +322,17 @@ def _trigger_scan_notifications(tenant_id: int, audit_id: str, target: str, resu
                 "vulnerability_count": critical_issues_count,
                 "critical_issues": critical_issues[:5],  # Limit to first 5
             }
-            send_notification_task.delay(tenant_id, "critical_vulnerability_found", vulnerability_data)
+            send_notification_task.delay(
+                tenant_id, "critical_vulnerability_found", vulnerability_data
+            )
         elif risk_level == "HIGH":
             send_notification_task.delay(tenant_id, "high_vulnerability_found", base_data)
     else:
         # Sync path: send directly (for dev/testing)
         from .notifications.service import send_notification
-        
+
         send_notification(tenant_id, "scan_completed", base_data)
-        
+
         if critical_issues_count > 0:
             vulnerability_data = {
                 **base_data,
@@ -294,8 +348,8 @@ def enqueue_audit(
     target: str,
     mode: str,
     *,
-    tenant_id: Optional[int] = None,
-    created_by_api_key_id: Optional[str] = None,
+    tenant_id: int | None = None,
+    created_by_api_key_id: str | None = None,
 ) -> str:
     audit_id = db.create_audit(
         target=target, mode=mode, tenant_id=tenant_id, created_by_api_key_id=created_by_api_key_id
@@ -310,4 +364,3 @@ def enqueue_audit(
         # dev fallback
         get_executor().submit(run_audit, audit_id, target, mode)
     return audit_id
-

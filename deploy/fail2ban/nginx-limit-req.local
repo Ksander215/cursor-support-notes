@@ -1,0 +1,8 @@
+# Fail2ban filter for Nginx rate limiting (429 errors)
+# Copy this file to /etc/fail2ban/filter.d/nginx-limit-req.local on VPS
+# Usage: sudo cp deploy/fail2ban/nginx-limit-req.local /etc/fail2ban/filter.d/nginx-limit-req.local
+
+[Definition]
+failregex = ^.*limiting requests.*client: <HOST>.*$
+            ^.*limiting requests.*client <HOST>.*$
+ignoreregex =

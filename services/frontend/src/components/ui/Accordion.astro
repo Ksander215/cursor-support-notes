@@ -1,0 +1,192 @@
+---
+// Accordion component for collapsible content
+interface Props {
+  items: Array<{ id: string; title: string; content: string }>;
+  allowMultiple?: boolean;
+  defaultOpen?: string[];
+  clientLoad?: boolean;
+}
+
+const {
+  items,
+  allowMultiple = false,
+  defaultOpen = [],
+  clientLoad = false,
+} = Astro.props;
+const accordionId = `accordion-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<div class="accordion" data-accordion-id={accordionId} data-allow-multiple={allowMultiple}>
+  {items.map((item) => {
+    const isOpen = defaultOpen.includes(item.id);
+    return (
+      <div class="accordion__item" data-item-id={item.id}>
+        <button
+          class={`accordion__trigger ${isOpen ? "accordion__trigger--open" : ""}`}
+          aria-expanded={isOpen}
+          aria-controls={`${accordionId}-content-${item.id}`}
+          id={`${accordionId}-trigger-${item.id}`}
+          data-item-id={item.id}
+        >
+          <span class="accordion__title">{item.title}</span>
+          <span class="accordion__icon" aria-hidden="true">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M4 6L8 10L12 6"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
+        <div
+          class={`accordion__content ${isOpen ? "accordion__content--open" : ""}`}
+          id={`${accordionId}-content-${item.id}`}
+          aria-labelledby={`${accordionId}-trigger-${item.id}`}
+          hidden={!isOpen}
+        >
+          <div class="accordion__body">
+            {item.content}
+          </div>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
+{clientLoad && (
+  <script>
+    (function () {
+      const accordion = document.querySelector(
+        `[data-accordion-id="${accordionId}"]`
+      );
+      if (!accordion) return;
+
+      const allowMultiple = accordion.dataset.allowMultiple === "true";
+      const triggers = accordion.querySelectorAll(".accordion__trigger");
+
+      triggers.forEach((trigger) => {
+        trigger.addEventListener("click", () => {
+          const itemId = trigger.dataset.itemId;
+          if (!itemId) return;
+
+          const item = accordion.querySelector(
+            `[data-item-id="${itemId}"]`
+          );
+          if (!item) return;
+
+          const content = item.querySelector(".accordion__content");
+          const isOpen = trigger.classList.contains("accordion__trigger--open");
+
+          if (!allowMultiple && !isOpen) {
+            // Close all other items
+            triggers.forEach((t) => {
+              if (t !== trigger) {
+                const otherItemId = t.dataset.itemId;
+                const otherItem = accordion.querySelector(
+                  `[data-item-id="${otherItemId}"]`
+                );
+                if (otherItem) {
+                  const otherContent = otherItem.querySelector(
+                    ".accordion__content"
+                  );
+                  t.classList.remove("accordion__trigger--open");
+                  otherContent?.classList.remove("accordion__content--open");
+                  otherContent?.setAttribute("hidden", "true");
+                  t.setAttribute("aria-expanded", "false");
+                }
+              }
+            });
+          }
+
+          // Toggle current item
+          if (isOpen) {
+            trigger.classList.remove("accordion__trigger--open");
+            content?.classList.remove("accordion__content--open");
+            content?.setAttribute("hidden", "true");
+            trigger.setAttribute("aria-expanded", "false");
+          } else {
+            trigger.classList.add("accordion__trigger--open");
+            content?.classList.add("accordion__content--open");
+            content?.removeAttribute("hidden");
+            trigger.setAttribute("aria-expanded", "true");
+          }
+        });
+      });
+    })();
+  </script>
+)}
+
+<style>
+  .accordion {
+    width: 100%;
+  }
+
+  .accordion__item {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .accordion__item:first-child {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .accordion__trigger {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .accordion__trigger:hover {
+    background: var(--color-surface-1);
+  }
+
+  .accordion__title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+  }
+
+  .accordion__icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--color-text-muted);
+    transition: transform 0.2s ease;
+  }
+
+  .accordion__trigger--open .accordion__icon {
+    transform: rotate(180deg);
+  }
+
+  .accordion__content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .accordion__content--open {
+    max-height: 1000px;
+  }
+
+  .accordion__body {
+    padding: 0 var(--space-4) var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-relaxed);
+  }
+</style>

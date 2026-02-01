@@ -9,7 +9,6 @@ import uuid
 from datetime import datetime
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
-
 from security_agent.core_v2 import SecurityAgentV2
 
 app = Flask(__name__)
@@ -192,9 +191,7 @@ def add_domain():
     if request.method == "POST":
         # Получаем данные из формы (используем правильные имена полей)
         name = request.form.get("domain_name", "").strip()
-        url = request.form.get(
-            "domain_name", ""
-        ).strip()  # Используем то же поле для URL
+        url = request.form.get("domain_name", "").strip()  # Используем то же поле для URL
 
         if not name:
             return "Domain name is required", 400
@@ -204,9 +201,7 @@ def add_domain():
             url = "https://" + url
 
         db = get_db()
-        cursor = db.execute(
-            "INSERT INTO domains (name, url) VALUES (?, ?)", (name, url)
-        )
+        cursor = db.execute("INSERT INTO domains (name, url) VALUES (?, ?)", (name, url))
         domain_id = cursor.lastrowid
         db.commit()
         db.close()

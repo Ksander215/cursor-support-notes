@@ -75,11 +75,11 @@ runs:
         PR_NUMBER: ${{ github.event.pull_request.number }}
       run: |
         set -e
-        
+
         # Prepare fail_on array
         FAIL_ON_ARRAY=$(echo "$FAIL_ON" | tr ',' '\n' | sed 's/^/"/;s/$/"/' | tr '\n' ',' | sed 's/,$//')
         FAIL_ON_JSON="[$FAIL_ON_ARRAY]"
-        
+
         # Prepare CI context
         CI_CONTEXT_JSON=$(cat <<EOF
         {
@@ -90,11 +90,11 @@ runs:
         }
         EOF
         )
-        
+
         if [ -n "$PR_NUMBER" ] && [ "$PR_NUMBER" != "null" ]; then
           CI_CONTEXT_JSON=$(echo "$CI_CONTEXT_JSON" | jq ". + {\"pull_request\": \"$PR_NUMBER\"}")
         fi
-        
+
         # Make API request
         RESPONSE=$(curl -s -X POST "${API_BASE_URL}/api/v1/ci/scan" \
           -H "Content-Type: application/json" \
@@ -107,7 +107,7 @@ runs:
             \"timeout\": ${TIMEOUT},
             \"ci_context\": ${CI_CONTEXT_JSON}
           }")
-        
+
         # Extract outputs
         AUDIT_ID=$(echo "$RESPONSE" | jq -r '.audit_id // empty')
         PASSED=$(echo "$RESPONSE" | jq -r '.passed // false')
@@ -115,13 +115,13 @@ runs:
         RISK_LEVEL=$(echo "$RESPONSE" | jq -r '.risk_level // empty')
         REPORT_URL=$(echo "$RESPONSE" | jq -r '.report_url // empty')
         FAILURE_REASON=$(echo "$RESPONSE" | jq -r '.failure_reason // empty')
-        
+
         echo "audit-id=${AUDIT_ID}" >> $GITHUB_OUTPUT
         echo "passed=${PASSED}" >> $GITHUB_OUTPUT
         echo "overall-score=${OVERALL_SCORE}" >> $GITHUB_OUTPUT
         echo "risk-level=${RISK_LEVEL}" >> $GITHUB_OUTPUT
         echo "report-url=${REPORT_URL}" >> $GITHUB_OUTPUT
-        
+
         # Display results
         echo "::group::Security Scan Results"
         echo "Audit ID: ${AUDIT_ID}"
@@ -132,7 +132,7 @@ runs:
           echo "Failure Reason: ${FAILURE_REASON}"
         fi
         echo "::endgroup::"
-        
+
         # Fail if scan didn't pass
         if [ "$PASSED" != "true" ]; then
           echo "::error::Security scan failed: ${FAILURE_REASON:-Unknown reason}"

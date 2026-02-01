@@ -2,9 +2,7 @@ import ipaddress
 import os
 import re
 import socket
-from typing import Tuple
 from urllib.parse import urlparse
-
 
 _HOST_RE = re.compile(r"^(?=.{1,253}$)([a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$")
 _IPV4_RE = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
@@ -38,9 +36,7 @@ def _resolve_all_ips(host: str) -> set[str]:
     ips: set[str] = set()
     try:
         for family, _type, _proto, _canon, sockaddr in socket.getaddrinfo(host, None):
-            if family == socket.AF_INET:
-                ips.add(sockaddr[0])
-            elif family == socket.AF_INET6:
+            if family == socket.AF_INET or family == socket.AF_INET6:
                 ips.add(sockaddr[0])
     except Exception:
         return set()
@@ -77,7 +73,7 @@ def ensure_public_target_or_raise(host: str) -> None:
         raise ValueError("private targets are not allowed")
 
 
-def normalize_target(target: str) -> Tuple[str, str]:
+def normalize_target(target: str) -> tuple[str, str]:
     """
     Returns (host, display_target).
     Accepts domain, IPv4, or URL. Strips scheme/path.
@@ -105,4 +101,3 @@ def normalize_target(target: str) -> Tuple[str, str]:
         return host, host
 
     raise ValueError("target must be a valid domain, IPv4, or URL")
-

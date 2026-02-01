@@ -77,4 +77,3 @@ if [[ -n "${API_DOMAIN:-}" ]] && [[ -f "/etc/letsencrypt/live/${API_DOMAIN}/full
 else
   echo "[info] SSL cert not found for API_DOMAIN (skip)"
 fi
-

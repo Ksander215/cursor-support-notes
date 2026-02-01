@@ -40,4 +40,3 @@ else
 fi
 
 echo "Готово: $DEST_DIR"
-

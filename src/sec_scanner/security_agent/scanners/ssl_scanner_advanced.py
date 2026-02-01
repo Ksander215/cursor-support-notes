@@ -2,10 +2,9 @@
 
 import re
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ...targets import ensure_public_target_or_raise
-
 
 _NOT_AFTER_RE = re.compile(r"notAfter=(.+)")
 
@@ -25,7 +24,7 @@ class AdvancedSSLScanner:
                 "checks": checks,
                 "recommendations": self.generate_recommendations(checks),
             }
-        except Exception as e:  # noqa: B110
+        except Exception as e:
             return {
                 "error": str(e),
                 "grade": "F",
@@ -70,10 +69,8 @@ class AdvancedSSLScanner:
 
             expiry_raw = m.group(1).strip()
             # openssl обычно: "Jun 12 12:00:00 2026 GMT"
-            expiry_dt = datetime.strptime(expiry_raw, "%b %d %H:%M:%S %Y %Z").replace(
-                tzinfo=timezone.utc
-            )
-            days_left = (expiry_dt - datetime.now(timezone.utc)).days
+            expiry_dt = datetime.strptime(expiry_raw, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=UTC)
+            days_left = (expiry_dt - datetime.now(UTC)).days
 
             status = "OK" if days_left >= 30 else "WARN" if days_left >= 7 else "ERROR"
             return {
@@ -82,7 +79,7 @@ class AdvancedSSLScanner:
                 "details": f"Действует до: {expiry_raw} (осталось дней: {days_left})",
                 "days_left": days_left,
             }
-        except Exception as e:  # noqa: B110
+        except Exception as e:
             return {"name": "SSL Expiry", "status": "ERROR", "details": f"Ошибка: {e}"}
 
     def calculate_grade(self, checks):
@@ -108,4 +105,3 @@ class AdvancedSSLScanner:
         if exp.get("status") == "ERROR":
             return ["Срочно проверьте SSL сертификат (ошибка или скоро истекает)"]
         return ["Регулярно обновляйте SSL сертификат и мониторьте срок действия"]
-

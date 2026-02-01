@@ -1,0 +1,54 @@
+# Fail2ban configuration for sec-scanner.pro
+# Copy this file to /etc/fail2ban/jail.local on VPS
+# Usage: sudo cp deploy/fail2ban/jail.local /etc/fail2ban/jail.local
+
+[DEFAULT]
+# Ban hosts for 1 hour (3600 seconds)
+bantime = 3600
+# Find hosts within 10 minutes (600 seconds)
+findtime = 600
+# Ban after 5 failed attempts
+maxretry = 5
+# Ignore localhost
+ignoreip = 127.0.0.1/8 ::1
+# Email notifications (optional, uncomment and configure if needed)
+# destemail = admin@sec-scanner.pro
+# sendername = Fail2Ban
+# action = %(action_mwl)s
+
+[sshd]
+enabled = true
+port = ssh
+logpath = %(sshd_log)s
+backend = %(sshd_backend)s
+maxretry = 5
+findtime = 600
+bantime = 3600
+
+[nginx-http-auth]
+enabled = true
+port = http,https
+logpath = /var/log/nginx/error.log
+maxretry = 5
+findtime = 600
+bantime = 3600
+
+[nginx-limit-req]
+enabled = true
+port = http,https
+logpath = /var/log/nginx/error.log
+maxretry = 10
+findtime = 60
+bantime = 300
+# Filter for 429 Too Many Requests
+failregex = ^.*limiting requests.*client: <HOST>.*$
+
+[nginx-botsearch]
+enabled = true
+port = http,https
+logpath = /var/log/nginx/access.log
+maxretry = 10
+findtime = 300
+bantime = 1800
+# Filter for repeated 404 errors (common bot behavior)
+failregex = ^<HOST>.*" 404 .*$

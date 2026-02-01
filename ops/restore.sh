@@ -66,4 +66,3 @@ docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
 
 echo "[7/7] Quick health check"
 curl -fsS "http://127.0.0.1:8000/healthz" >/dev/null && echo "[ok] /healthz" || echo "[warn] /healthz failed"
-

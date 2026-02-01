@@ -17,7 +17,7 @@ function Test-Command($name) {
 if (Test-Command "rsync") {
   Write-Host "Using rsync..."
   $ssh = "ssh -p $ProdPort -o StrictHostKeyChecking=accept-new"
-  rsync -avz --delete -e $ssh "$ProdUser@$ProdHost`:$ProdPath/" "$DestDir\$(Split-Path -Leaf $ProdPath)\" 
+  rsync -avz --delete -e $ssh "$ProdUser@$ProdHost`:$ProdPath/" "$DestDir\$(Split-Path -Leaf $ProdPath)\"
   exit 0
 }
 
@@ -27,4 +27,3 @@ if (-not (Test-Command "scp")) {
 
 Write-Host "Using scp (без delete/инкрементальности)..."
 scp -P $ProdPort -r "$ProdUser@$ProdHost`:$ProdPath" $DestDir
-

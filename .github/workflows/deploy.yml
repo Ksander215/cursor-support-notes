@@ -1,0 +1,94 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'src/**'
+      - 'services/frontend/**'
+      - 'services/web-check/**'
+      - 'docker-compose.prod.yml'
+      - 'Dockerfile'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy (all, frontend, api)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - frontend
+          - api
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync code to VPS
+        run: |
+          rsync -avz --delete \
+            --exclude='.git' \
+            --exclude='.venv' \
+            --exclude='venv' \
+            --exclude='node_modules' \
+            --exclude='dist' \
+            --exclude='build' \
+            --exclude='.astro' \
+            --exclude='.cache' \
+            --exclude='*.db' \
+            --exclude='*.sqlite' \
+            --exclude='.env.production' \
+            --exclude='.env.local' \
+            ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.VPS_PATH }}/
+
+      - name: Deploy services
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<EOF
+          set -e
+          cd ${{ secrets.VPS_PATH }}
+
+          SERVICE="${{ github.event.inputs.service || 'all' }}"
+
+          if [ "\$SERVICE" = "frontend" ]; then
+            docker compose -f docker-compose.prod.yml build frontend
+            docker compose -f docker-compose.prod.yml up -d frontend
+          elif [ "\$SERVICE" = "api" ]; then
+            docker compose -f docker-compose.prod.yml build api worker
+            docker compose -f docker-compose.prod.yml up -d api worker
+          else
+            docker compose -f docker-compose.prod.yml build
+            docker compose -f docker-compose.prod.yml up -d
+          fi
+
+          # Health check
+          sleep 10
+          curl -f http://127.0.0.1:8000/healthz || exit 1
+
+          # Show status
+          docker compose -f docker-compose.prod.yml ps
+          EOF
+
+      - name: Verify deployment
+        run: |
+          echo "✅ Deployment completed"
+          echo "🌐 UI: https://sec-scanner.pro/app/dashboard"
+          echo "🌐 API: https://api.sec-scanner.pro/healthz"

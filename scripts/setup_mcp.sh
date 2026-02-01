@@ -43,7 +43,7 @@ if [ ! -f "$ENV_FILE" ]; then
     echo "📝 Создание файла .env.mcp"
     echo "Введите значения для переменных окружения (или нажмите Enter для пропуска):"
     echo ""
-    
+
     read -p "GitHub Token (ghp_...): " GITHUB_TOKEN_INPUT
     # Валидация: если введен текст подсказки или пусто, очищаем
     if [[ "$GITHUB_TOKEN_INPUT" == *"Token"* ]] || [[ "$GITHUB_TOKEN_INPUT" == *"github"* ]] || [ -z "$GITHUB_TOKEN_INPUT" ]; then
@@ -51,7 +51,7 @@ if [ ! -f "$ENV_FILE" ]; then
     else
         GITHUB_TOKEN="$GITHUB_TOKEN_INPUT"
     fi
-    
+
     read -p "PostgreSQL Connection String (Enter для SQLite: sqlite:///data/sec_scanner.db): " POSTGRES_INPUT
     # Валидация: если введен текст подсказки, используем значение по умолчанию
     if [[ "$POSTGRES_INPUT" == *"Connection String"* ]] || [[ "$POSTGRES_INPUT" == *"PostgreSQL"* ]] || [ -z "$POSTGRES_INPUT" ]; then
@@ -59,32 +59,32 @@ if [ ! -f "$ENV_FILE" ]; then
     else
         POSTGRES_CONNECTION_STRING="$POSTGRES_INPUT"
     fi
-    
+
     read -p "GitLab Token (опционально, glpat-...): " GITLAB_TOKEN_INPUT
     if [[ "$GITLAB_TOKEN_INPUT" == *"Token"* ]] || [[ "$GITLAB_TOKEN_INPUT" == *"опционально"* ]] || [ -z "$GITLAB_TOKEN_INPUT" ]; then
         GITLAB_TOKEN=""
     else
         GITLAB_TOKEN="$GITLAB_TOKEN_INPUT"
     fi
-    
+
     read -p "Slack Bot Token (опционально, xoxb-...): " SLACK_INPUT
     if [[ "$SLACK_INPUT" == *"Token"* ]] || [[ "$SLACK_INPUT" == *"опционально"* ]] || [ -z "$SLACK_INPUT" ]; then
         SLACK_BOT_TOKEN=""
     else
         SLACK_BOT_TOKEN="$SLACK_INPUT"
     fi
-    
+
     read -p "Redis URL (Enter для значения по умолчанию: redis://localhost:6379/0): " REDIS_INPUT
     if [[ "$REDIS_INPUT" == *"URL"* ]] || [[ "$REDIS_INPUT" == *"опционально"* ]] || [ -z "$REDIS_INPUT" ]; then
         REDIS_URL="redis://localhost:6379/0"
     else
         REDIS_URL="$REDIS_INPUT"
     fi
-    
+
     # Экранируем специальные символы для безопасной записи
     cat > "$ENV_FILE" << 'ENVEOF'
 # MCP Environment Variables
-# Generated: 
+# Generated:
 # ВАЖНО: Замените значения ниже на реальные токены!
 
 # GitHub
@@ -103,7 +103,7 @@ SLACK_BOT_TOKEN=
 # Redis (опционально)
 REDIS_URL=redis://localhost:6379/0
 ENVEOF
-    
+
     # Записываем реальные значения (если были введены)
     if [ -n "$GITHUB_TOKEN" ]; then
         sed -i "s|^GITHUB_TOKEN=$|GITHUB_TOKEN=$GITHUB_TOKEN|" "$ENV_FILE"
@@ -117,7 +117,7 @@ ENVEOF
     if [ -n "$SLACK_BOT_TOKEN" ]; then
         sed -i "s|^SLACK_BOT_TOKEN=$|SLACK_BOT_TOKEN=$SLACK_BOT_TOKEN|" "$ENV_FILE"
     fi
-    
+
     echo "✅ Создан файл .env.mcp"
     echo "⚠️  ВАЖНО: Отредактируйте .env.mcp и добавьте реальные токены!"
     echo "⚠️  Не забудьте добавить .env.mcp в .gitignore!"

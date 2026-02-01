@@ -11,6 +11,5 @@ def run_audit_task(audit_id: str, target: str, mode: str) -> None:
 def send_notification_task(org_id: int, event: str, data: dict) -> int:
     """Celery task for sending notifications"""
     from src.sec_scanner.notifications.service import send_notification
-    
-    return send_notification(org_id, event, data)
 
+    return send_notification(org_id, event, data)

@@ -5,6 +5,8 @@ from datetime import datetime
 from .reports import MarkdownReporter
 from .scanners import (
     AdvancedSSLScanner,
+    DependencyScanner,
+    NmapScanner,
     SafePortScanner,
     SecurityHeadersScanner,
     WebVulnerabilityScanner,
@@ -23,11 +25,28 @@ class SecurityAgentV2:
         self.results_cache = {}
 
     def initialize_scanners(self):
+        # Пытаемся использовать Nmap для расширенного сканирования, если доступен
+        # В противном случае используем SafePortScanner
+        try:
+            import subprocess
+
+            subprocess.run(["nmap", "--version"], capture_output=True, timeout=5, check=True)
+            # Nmap доступен, используем его для режимов normal и full
+            ports_scanner = (
+                NmapScanner(timeout=30, use_nse=True)
+                if self.mode in ["normal", "full"]
+                else SafePortScanner(timeout=2, max_workers=10)
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            # Nmap не доступен, используем SafePortScanner
+            ports_scanner = SafePortScanner(timeout=2, max_workers=10)
+
         return {
             "ssl": AdvancedSSLScanner(),
             "headers": SecurityHeadersScanner(timeout=10),
             "web": WebVulnerabilityScanner(timeout=15, delay=1),
-            "ports": SafePortScanner(timeout=2, max_workers=10),
+            "ports": ports_scanner,
+            "dependencies": DependencyScanner(timeout=30),
         }
 
     def audit_domain(self, domain):
@@ -53,9 +72,7 @@ class SecurityAgentV2:
             "scanner": "SecurityHeadersScanner",
             "results": headers_results,
             "score": (
-                headers_results.get("security_score", 0)
-                if headers_results.get("success")
-                else 0
+                headers_results.get("security_score", 0) if headers_results.get("success") else 0
             ),
         }
 
@@ -65,9 +82,7 @@ class SecurityAgentV2:
                 "scanner": "SafePortScanner",
                 "results": port_results,
                 "score": (
-                    port_results.get("security_score", 0)
-                    if port_results.get("success")
-                    else 0
+                    port_results.get("security_score", 0) if port_results.get("success") else 0
                 ),
             }
         else:
@@ -220,7 +235,9 @@ class SecurityAgentV2:
         if critical_issues:
             report_parts.append("## 🚨 Критические проблемы")
             for issue in critical_issues:
-                report_parts.append(f"- **{issue['category']}**: {issue['issue']} — {issue['details']}")
+                report_parts.append(
+                    f"- **{issue['category']}**: {issue['issue']} — {issue['details']}"
+                )
             report_parts.append("")
 
         recommendations = audit_results.get("recommendations", [])
@@ -233,4 +250,3 @@ class SecurityAgentV2:
         report_parts.append("---")
         report_parts.append("*Сгенерировано sec-scanner*")
         return "\n".join(report_parts)
-

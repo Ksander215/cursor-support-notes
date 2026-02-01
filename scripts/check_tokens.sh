@@ -33,7 +33,7 @@ else
     RESPONSE=$(curl -s -w "\n%{http_code}" -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user 2>/dev/null)
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | head -n-1)
-    
+
     if [ "$HTTP_CODE" = "200" ]; then
         USERNAME=$(echo "$BODY" | grep -o '"login":"[^"]*' | cut -d'"' -f4)
         echo "   ✅ Токен работает! Пользователь: $USERNAME"
@@ -57,7 +57,7 @@ else
     RESPONSE=$(curl -s -w "\n%{http_code}" -H "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/user 2>/dev/null)
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | head -n-1)
-    
+
     if [ "$HTTP_CODE" = "200" ]; then
         USERNAME=$(echo "$BODY" | grep -o '"username":"[^"]*' | cut -d'"' -f4)
         echo "   ✅ Токен работает! Пользователь: $USERNAME"
@@ -82,7 +82,7 @@ else
     RESPONSE=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $SLACK_BOT_TOKEN" https://slack.com/api/auth.test 2>/dev/null)
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | head -n-1)
-    
+
     if echo "$BODY" | grep -q '"ok":true'; then
         echo "   ✅ Токен работает!"
     elif [ "$HTTP_CODE" = "200" ] && echo "$BODY" | grep -q '"ok":false'; then
@@ -106,7 +106,7 @@ elif [[ "$TELEGRAM_BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe" 2>/dev/null)
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | head -n-1)
-    
+
     if echo "$BODY" | grep -q '"ok":true'; then
         BOT_NAME=$(echo "$BODY" | grep -o '"username":"[^"]*' | cut -d'"' -f4)
         echo "   ✅ Токен работает! Бот: @$BOT_NAME"

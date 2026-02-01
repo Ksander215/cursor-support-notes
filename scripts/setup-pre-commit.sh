@@ -14,7 +14,7 @@ setup_python_env() {
         PYTHON_CMD="python"
         return 0
     fi
-    
+
     # Check for .venv in project root
     if [ -f ".venv/bin/activate" ]; then
         echo "📦 Activating virtual environment .venv..."
@@ -23,7 +23,7 @@ setup_python_env() {
         PYTHON_CMD="python"
         return 0
     fi
-    
+
     # Check if pipx is available (best option for pre-commit)
     if command -v pipx &> /dev/null; then
         echo "📦 Using pipx to install pre-commit (recommended)..."
@@ -31,7 +31,7 @@ setup_python_env() {
         PYTHON_CMD="python3"
         return 0
     fi
-    
+
     # Try to use python3 -m pip (works in some cases)
     if command -v python3 &> /dev/null; then
         echo "⚠️  No virtual environment found. Trying python3 -m pip..."
@@ -39,7 +39,7 @@ setup_python_env() {
         PYTHON_CMD="python3"
         return 0
     fi
-    
+
     echo "❌ Error: Could not find Python environment"
     echo ""
     echo "Please choose one of the following options:"
@@ -80,7 +80,14 @@ pre-commit install
 # Create secrets baseline if it doesn't exist
 if [ ! -f .secrets.baseline ]; then
     echo "🔐 Creating secrets baseline..."
-    pre-commit run detect-secrets --all-files || true
+    if command -v detect-secrets &> /dev/null; then
+        detect-secrets scan --baseline .secrets.baseline || {
+            echo "⚠️ Could not create secrets baseline. Continuing without it..."
+        }
+    else
+        echo "⚠️ detect-secrets not found. Install it with: pip install detect-secrets"
+        echo "   Or create baseline manually: detect-secrets scan --baseline .secrets.baseline"
+    fi
 fi
 
 # Run pre-commit on all files to check setup

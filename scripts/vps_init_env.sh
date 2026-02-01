@@ -67,13 +67,14 @@ ensure_nonempty "LETSENCRYPT_EMAIL" "admin@sec-scanner.pro"
 ensure_secret_not_placeholder "POSTGRES_PASSWORD" "CHANGE_ME_STRONG" 24
 ensure_secret_not_placeholder "SEC_SCANNER_API_KEY_PEPPER" "CHANGE_ME_RANDOM" 32
 
-# Safe defaults (do not enable auth automatically)
+# Safe defaults
 ensure_nonempty "SEC_SCANNER_ALLOW_PRIVATE_TARGETS" "false"
-ensure_nonempty "SEC_SCANNER_REQUIRE_API_KEY" "false"
+# CRITICAL: Enable API key requirement in production for security
+# Set to false only if you need unauthenticated access (not recommended)
+ensure_nonempty "SEC_SCANNER_REQUIRE_API_KEY" "true"
 ensure_nonempty "SEC_SCANNER_API_KEY" ""
 
 echo "[ok] .env.production initialized (values not printed)."
 echo "Keys present:"
 grep -E '^(POSTGRES_PASSWORD|ROOT_DOMAIN|API_DOMAIN|LETSENCRYPT_EMAIL|SEC_SCANNER_API_KEY|SEC_SCANNER_ALLOW_PRIVATE_TARGETS|SEC_SCANNER_REQUIRE_API_KEY|SEC_SCANNER_API_KEY_PEPPER)=' .env.production \
   | sed -E 's/^(POSTGRES_PASSWORD|SEC_SCANNER_API_KEY|SEC_SCANNER_API_KEY_PEPPER)=.*/\1=*** (hidden)/'
-

@@ -16,6 +16,12 @@ paths = [
     '''^\.env\.production\.example$''',
     '''^requirements\.txt$''',
     '''^package\.json$''',
+    '''node_modules/''',
+    '''dist/''',
+    '''build/''',
+    '''\.astro/''',
+    '''\.next/''',
+    '''\.cache/''',
 ]
 
 commits = [

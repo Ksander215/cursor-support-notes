@@ -1,0 +1,206 @@
+---
+const {
+  id,
+  title,
+  class: className = "",
+  closeOnBackdropClick = true,
+  closeOnEscape = true,
+} = Astro.props as {
+  id: string;
+  title?: string;
+  class?: string;
+  closeOnBackdropClick?: boolean;
+  closeOnEscape?: boolean;
+};
+---
+
+<div
+  id={id}
+  class={`modal-overlay ${className}`.trim()}
+  data-close-on-backdrop={closeOnBackdropClick}
+  data-close-on-escape={closeOnEscape}
+>
+  <div class="modal-container" role="dialog" aria-modal="true" aria-labelledby={title ? `${id}-title` : undefined}>
+    {title && (
+      <div class="modal-header">
+        <h2 id={`${id}-title`} class="h2">{title}</h2>
+        <button class="modal-close" aria-label="Close modal" type="button">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 5l10 10M15 5l-10 10" />
+          </svg>
+        </button>
+      </div>
+    )}
+    <div class="modal-body">
+      <slot />
+    </div>
+  </div>
+</div>
+
+<style>
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    animation: modalFadeIn var(--dur-2) var(--ease-out);
+  }
+
+  .modal-container {
+    width: min(560px, 100%);
+    max-height: calc(100vh - 2 * var(--space-4));
+    overflow-y: auto;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    animation: modalSlideIn var(--dur-2) var(--ease-out);
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-5);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-header .h2 {
+    margin: 0;
+  }
+
+  .modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    transition:
+      background var(--dur-2) var(--ease-out),
+      color var(--dur-2) var(--ease-out);
+  }
+
+  .modal-close:hover {
+    background: var(--surface-1);
+    color: var(--text-1);
+  }
+
+  .modal-close:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  .modal-body {
+    padding: var(--space-5);
+  }
+
+  @keyframes modalFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes modalSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @media (max-width: 560px) {
+    .modal-container {
+      width: 100%;
+      max-height: 100vh;
+      border-radius: 0;
+    }
+
+    .modal-overlay {
+      padding: 0;
+    }
+  }
+</style>
+
+<script>
+  // Modal functionality
+  const modalId = document.currentScript?.closest('[id]')?.id || "";
+  if (modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      const overlay = modal;
+      const container = modal.querySelector(".modal-container");
+      const closeBtn = modal.querySelector(".modal-close");
+      const closeOnBackdrop = overlay.dataset.closeOnBackdrop === "true";
+      const closeOnEscape = overlay.dataset.closeOnEscape === "true";
+
+      function closeModal() {
+        overlay.style.animation = "modalFadeOut var(--dur-2) var(--ease-out)";
+        if (container) {
+          container.style.animation = "modalSlideOut var(--dur-2) var(--ease-out)";
+        }
+        setTimeout(() => {
+          overlay.style.display = "none";
+        }, 200);
+      }
+
+      if (closeBtn) {
+        closeBtn.addEventListener("click", closeModal);
+      }
+
+      if (closeOnBackdrop) {
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) {
+            closeModal();
+          }
+        });
+      }
+
+      if (closeOnEscape) {
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && overlay.style.display !== "none") {
+            closeModal();
+          }
+        });
+      }
+    }
+  }
+</script>
+
+<style>
+  @keyframes modalFadeOut {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes modalSlideOut {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.95);
+    }
+  }
+</style>

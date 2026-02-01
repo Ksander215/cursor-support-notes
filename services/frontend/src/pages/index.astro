@@ -1,5 +1,88 @@
 ---
 import Base from "../layouts/Base.astro";
+import PricingCard from "../components/PricingCard.astro";
+
+const pricingPlans = [
+  {
+    code: "free",
+    name: "Free",
+    price: "$0",
+    period: "month",
+    description: "Perfect for trying out sec-scanner.pro",
+    features: [
+      "10 scans per month",
+      "Safe mode only",
+      "Basic reports (Markdown)",
+      "30 days history",
+      "Community support",
+    ],
+    cta: "Get Started",
+    ctaHref: "/app/dashboard",
+  },
+  {
+    code: "starter",
+    name: "Starter",
+    price: "$29",
+    period: "month",
+    description: "For small teams and startups",
+    features: [
+      "100 scans per month",
+      "All scan modes (safe, normal, full)",
+      "All report formats (PDF, JSON, Markdown)",
+      "90 days history",
+      "CI/CD integrations",
+      "Email notifications",
+      "API access (1,000 requests/month)",
+      "Priority support",
+    ],
+    cta: "Start Free Trial",
+    ctaHref: "/app/dashboard",
+    popular: true,
+    badge: "Popular",
+  },
+  {
+    code: "professional",
+    name: "Professional",
+    price: "$99",
+    period: "month",
+    description: "For growing teams and businesses",
+    features: [
+      "500 scans per month",
+      "All scan modes + advanced checks",
+      "Dependency Scanning",
+      "Nmap integration",
+      "1 year history",
+      "All integrations (Slack, Telegram, Webhooks)",
+      "API access (10,000 requests/month)",
+      "Priority support (email + chat)",
+      "Custom webhooks",
+    ],
+    cta: "Start Free Trial",
+    ctaHref: "/app/dashboard",
+  },
+  {
+    code: "enterprise",
+    name: "Enterprise",
+    price: "Custom",
+    period: "",
+    description: "For large organizations",
+    features: [
+      "Unlimited scans",
+      "All features + extended capabilities",
+      "OWASP ZAP integration",
+      "SAST analysis (up to 10 repos)",
+      "Dedicated infrastructure (optional)",
+      "On-premise deployment (optional)",
+      "SLA guarantees",
+      "24/7 priority support",
+      "Custom integrations",
+      "White-label reports",
+      "Dedicated account manager",
+    ],
+    cta: "Contact Sales",
+    ctaHref: "mailto:sales@sec-scanner.pro",
+  },
+];
 ---
 <Base title="sec-scanner.pro" description="Unified security scanning interface">
   <header class="container site-header">
@@ -63,3 +146,34 @@ import Base from "../layouts/Base.astro";
   </main>
 </Base>
 
+<style>
+  .pricing-section {
+    margin: var(--space-7) 0;
+    padding: var(--space-7) 0;
+  }
+
+  .pricing-header {
+    text-align: center;
+    margin-bottom: var(--space-7);
+  }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-4);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  @media (min-width: 768px) {
+    .pricing-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .pricing-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+</style>

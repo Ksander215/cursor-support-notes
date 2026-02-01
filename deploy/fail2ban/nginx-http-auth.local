@@ -1,0 +1,8 @@
+# Fail2ban filter for Nginx HTTP authentication failures
+# Copy this file to /etc/fail2ban/filter.d/nginx-http-auth.local on VPS
+# Usage: sudo cp deploy/fail2ban/nginx-http-auth.local /etc/fail2ban/filter.d/nginx-http-auth.local
+
+[Definition]
+failregex = ^.*\[error\].*client: <HOST>.*,.*401.*$
+            ^.*\[error\].*client <HOST>.*,.*401.*$
+ignoreregex =

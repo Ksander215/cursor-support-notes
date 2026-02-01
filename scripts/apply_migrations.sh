@@ -39,7 +39,7 @@ try:
         print("✅ Используется SQLite база данных")
     else:
         print(f"✅ Используется PostgreSQL: {url.split('@')[1] if '@' in url else 'localhost'}")
-    
+
     # Проверяем подключение
     db = next(get_db())
     db.execute(text("SELECT 1"))

@@ -1,6 +1,13 @@
+import logging
 import os
 
 from celery import Celery
+from celery.signals import task_postrun, task_prerun
+
+from .logging_config import set_request_id
+
+# Setup logging for Celery worker
+logger = logging.getLogger("sec_scanner.celery")
 
 
 def get_redis_url() -> str:
@@ -24,3 +31,15 @@ celery_app.conf.update(
     enable_utc=True,
 )
 
+
+@task_prerun.connect
+def task_prerun_handler(sender=None, task_id=None, **kwargs):
+    """Set request ID for Celery task (use task_id as request_id)."""
+    if task_id:
+        set_request_id(f"celery-{task_id}")
+
+
+@task_postrun.connect
+def task_postrun_handler(sender=None, task_id=None, **kwargs):
+    """Clear request ID after task completion."""
+    set_request_id(None)

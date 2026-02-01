@@ -1,0 +1,69 @@
+---
+const {
+  tone = "neutral",
+  class: className = "",
+  id,
+  duration = 5000,
+} = Astro.props as {
+  tone?: "neutral" | "info" | "ok" | "warn" | "bad";
+  class?: string;
+  id?: string;
+  duration?: number;
+};
+
+const toneClass =
+  tone === "info"
+    ? "alert-info"
+    : tone === "ok"
+    ? "alert-ok"
+    : tone === "warn"
+    ? "alert-warn"
+    : tone === "bad"
+    ? "alert-bad"
+    : "alert-neutral";
+---
+
+<div
+  id={id}
+  class={`toast ${toneClass} ${className}`.trim()}
+  role="alert"
+  data-duration={duration}
+>
+  <slot />
+</div>
+
+<style>
+  .toast {
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    animation: toastSlideIn var(--dur-2) var(--ease-out);
+  }
+
+  @keyframes toastSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .toast.alert-info {
+    border-color: rgba(110, 231, 255, 0.35);
+  }
+  .toast.alert-ok {
+    border-color: rgba(34, 197, 94, 0.35);
+  }
+  .toast.alert-warn {
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+  .toast.alert-bad {
+    border-color: rgba(239, 68, 68, 0.35);
+  }
+</style>

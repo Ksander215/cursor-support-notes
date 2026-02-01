@@ -1,0 +1,20 @@
+---
+// TabPanel component - must be used with Tabs
+interface Props {
+  id: string;
+  tabsId: string;
+  active?: boolean;
+}
+
+const { id, tabsId, active = false } = Astro.props;
+---
+
+<div
+  class={`tabs__panel ${active ? "tabs__panel--active" : ""}`}
+  role="tabpanel"
+  id={`${tabsId}-panel-${id}`}
+  aria-labelledby={`${tabsId}-tab-${id}`}
+  aria-hidden={!active}
+>
+  <slot />
+</div>

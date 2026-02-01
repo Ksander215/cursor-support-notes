@@ -40,4 +40,3 @@ services:
     ports:
       - "3001:3000"
     restart: unless-stopped
-

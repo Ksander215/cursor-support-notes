@@ -1,13 +1,13 @@
 """create audits table
 
 Revision ID: 20260125_0001
-Revises: 
+Revises:
 Create Date: 2026-01-25
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "20260125_0001"
 down_revision = None
@@ -40,4 +40,3 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("audits")
-

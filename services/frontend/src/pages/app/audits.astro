@@ -60,13 +60,13 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
       <ProgressIndicator client:load />
     </div>
     <div id="detailBody" style="margin-top: var(--space-3);"></div>
-    
+
     <div id="timelineSection" style="margin-top: var(--space-4); display: none;">
       <Card class="section">
         <TimelineChart client:load />
       </Card>
     </div>
-    
+
     <div id="chartsSection" style="margin-top: var(--space-4); display: none;">
       <Card class="section">
         <VulnerabilityChart client:load />
@@ -108,7 +108,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     const elExportPdfBtn = document.getElementById("exportPdfBtn");
     const elExportJsonBtn = document.getElementById("exportJsonBtn");
     const elExportMarkdownBtn = document.getElementById("exportMarkdownBtn");
-    
+
     let progressPollInterval: number | null = null;
 
     function setEmpty(isEmpty) {
@@ -210,6 +210,14 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
       try {
         const data = await client().listAudits(50, currentApiKey());
         const items = (data && data.items) ? data.items : [];
+        const hasMore = data?.has_more || false;
+        const total = data?.total;
+
+        // Log pagination info for debugging (can be removed later)
+        if (hasMore || total !== null && total !== undefined) {
+          console.log(`Pagination: ${items.length} items, has_more=${hasMore}, total=${total || 'N/A'}`);
+        }
+
         if (items.length === 0) {
           elList.innerHTML = "";
           setEmpty(true);
@@ -269,7 +277,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
             </div>
           </div>
         `;
-        
+
         // Show/hide progress indicator based on status
         if ((a.status === "running" || a.status === "queued") && elProgressSection) {
           elProgressSection.style.display = "block";
@@ -278,14 +286,14 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
           stopProgressPolling();
           if (elProgressSection) elProgressSection.style.display = "none";
         }
-        
+
         // Show export buttons if audit is completed
         if (a.status === "completed" && elExportButtons) {
           elExportButtons.style.display = "flex";
         } else if (elExportButtons) {
           elExportButtons.style.display = "none";
         }
-        
+
         // Load charts if audit is completed
         if (a.status === "completed") {
           // Load timeline history
@@ -294,7 +302,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
           } else {
             if (elTimelineSection) elTimelineSection.style.display = "none";
           }
-          
+
           // Load result data for vulnerability and score breakdown charts
           if (a.result) {
             await loadCharts(a.result, a.overall_score);
@@ -312,20 +320,20 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
         if (elChartsSection) elChartsSection.style.display = "none";
       }
     }
-    
+
     async function loadCharts(resultData, overallScore) {
       if (!elChartsSection) return;
       showVulnerabilityLoading();
       showScoreBreakdownLoading();
       elChartsSection.style.display = "block";
-      
+
       // Small delay to ensure DOM is ready
       setTimeout(() => {
         renderVulnerabilityChart("vulnerabilityContainer", resultData);
         renderScoreBreakdown("scoreBreakdownContainer", resultData, overallScore);
       }, 100);
     }
-    
+
     async function loadTimeline(auditId) {
       if (!elTimelineSection) return;
       showTimelineLoading();
@@ -338,13 +346,13 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
         renderTimeline("timelineContainer", null);
       }
     }
-    
+
     async function loadProgress(auditId) {
       if (!elProgressSection) return;
       try {
         const progress = await client().getAuditProgress(String(auditId), currentApiKey());
         renderProgress("progressContainer", progress);
-        
+
         // Stop polling if audit is completed or failed
         if (progress.overall_status === "completed" || progress.overall_status === "failed") {
           stopProgressPolling();
@@ -360,20 +368,20 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
         stopProgressPolling();
       }
     }
-    
+
     function startProgressPolling(auditId) {
       stopProgressPolling(); // Clear any existing interval
-      
+
       // Load immediately
       showProgressLoading("progressContainer");
       loadProgress(auditId);
-      
+
       // Poll every 2 seconds
       progressPollInterval = window.setInterval(() => {
         loadProgress(auditId);
       }, 2000);
     }
-    
+
     function stopProgressPolling() {
       if (progressPollInterval !== null) {
         clearInterval(progressPollInterval);
@@ -406,14 +414,14 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     function exportAudit(format) {
       const id = selectedId();
       if (!id) return;
-      
+
       const apiBase = currentApiBase();
       const apiKey = currentApiKey();
       const url = `${apiBase}/api/v1/audits/${encodeURIComponent(id)}/export?format=${format}`;
-      
+
       const headers = {};
       if (apiKey) headers["X-API-Key"] = apiKey;
-      
+
       fetch(url, { headers })
         .then((res) => {
           if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -468,7 +476,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
       window.history.pushState({}, "", url.pathname + url.search);
       renderFromUrl();
     });
-    
+
     // Stop polling when page is hidden
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
@@ -492,4 +500,3 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     renderFromUrl();
   </script>
 </AppShell>
-

@@ -26,7 +26,7 @@ if [ -f "requirements.txt" ]; then
         python3 -m venv .venv
         source .venv/bin/activate
     fi
-    
+
     echo "   📦 Установка зависимостей из requirements.txt..."
     pip install -q -r requirements.txt
     echo "   ✅ Зависимости установлены"
@@ -64,7 +64,7 @@ echo "4️⃣  Проверка Docker..."
 if command -v docker &> /dev/null; then
     echo "   ✅ Docker найден в PATH"
     docker --version
-    
+
     # Проверка доступности Docker daemon
     if docker ps &> /dev/null; then
         echo "   ✅ Docker daemon доступен"
@@ -85,10 +85,10 @@ echo ""
 echo "5️⃣  Проверка PostgreSQL подключения..."
 if [ -f ".env.mcp" ]; then
     POSTGRES_URL=$(grep "^POSTGRES_CONNECTION_STRING=" .env.mcp | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-    
+
     if [ -n "$POSTGRES_URL" ]; then
         echo "   📝 Найдена строка подключения в .env.mcp"
-        
+
         if [[ "$POSTGRES_URL" == sqlite* ]]; then
             echo "   ℹ️  Используется SQLite (не требует отдельного сервера)"
         else
@@ -127,7 +127,7 @@ echo ""
 echo "6️⃣  Проверка Redis подключения..."
 if [ -f ".env.mcp" ]; then
     REDIS_URL=$(grep "^REDIS_URL=" .env.mcp | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-    
+
     if [ -n "$REDIS_URL" ]; then
         echo "   📝 Найден REDIS_URL в .env.mcp"
         if python3 -c "

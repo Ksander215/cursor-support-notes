@@ -34,9 +34,7 @@ class MarkdownReporter:
             "domain": audit_results.get("domain", "Неизвестный домен"),
             "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "risk_score": audit_results.get("risk_score", 5),
-            "ssl_results": self.format_ssl_results(
-                audit_results.get("results", {}).get("ssl", {})
-            ),
+            "ssl_results": self.format_ssl_results(audit_results.get("results", {}).get("ssl", {})),
             "headers_results": "См. детальный отчет в JSON",
             "recommendations": self.format_recommendations(
                 audit_results.get("results", {}).get("ssl", {})
@@ -49,9 +47,7 @@ class MarkdownReporter:
 
         result = f"**Оценка:** {ssl_data.get('grade', 'N/A')}\n\n"
         for check in ssl_data.get("checks", []):
-            result += (
-                f"- **{check.get('name', 'Проверка')}:** {check.get('status', 'UNKNOWN')}\n"
-            )
+            result += f"- **{check.get('name', 'Проверка')}:** {check.get('status', 'UNKNOWN')}\n"
             if check.get("details"):
                 result += f"  *{check.get('details')}*\n"
         return result
@@ -65,4 +61,3 @@ class MarkdownReporter:
             return "Нет рекомендаций"
 
         return "\n".join([f"{i}. {rec}" for i, rec in enumerate(recs, 1)]) + "\n"
-

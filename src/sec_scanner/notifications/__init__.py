@@ -1,4 +1,10 @@
-from .providers import EmailProvider, NotificationProvider, SlackProvider, TelegramProvider, WebhookProvider
+from .providers import (
+    EmailProvider,
+    NotificationProvider,
+    SlackProvider,
+    TelegramProvider,
+    WebhookProvider,
+)
 from .service import NotificationService, send_notification
 
 __all__ = [

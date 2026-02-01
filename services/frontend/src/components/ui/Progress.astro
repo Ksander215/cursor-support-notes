@@ -1,0 +1,142 @@
+---
+// Progress bar component
+interface Props {
+  value: number; // 0-100
+  max?: number; // default 100
+  label?: string;
+  showValue?: boolean;
+  size?: "sm" | "md" | "lg";
+  tone?: "neutral" | "info" | "ok" | "warn" | "bad";
+}
+
+const {
+  value,
+  max = 100,
+  label,
+  showValue = false,
+  size = "md",
+  tone = "neutral",
+} = Astro.props;
+
+const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
+const sizeClass = `progress--${size}`;
+const toneClass = `progress--${tone}`;
+---
+
+<div class={`progress ${sizeClass} ${toneClass}`}>
+  {label && (
+    <div class="progress__header">
+      <span class="progress__label">{label}</span>
+      {showValue && (
+        <span class="progress__value">{Math.round(percentage)}%</span>
+      )}
+    </div>
+  )}
+  <div class="progress__track">
+    <div
+      class="progress__bar"
+      style={`width: ${percentage}%`}
+      role="progressbar"
+      aria-valuenow={value}
+      aria-valuemin="0"
+      aria-valuemax={max}
+      aria-label={label || "Progress"}
+    >
+      <span class="progress__bar-inner"></span>
+    </div>
+  </div>
+</div>
+
+<style>
+  .progress {
+    width: 100%;
+  }
+
+  .progress__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-1);
+    font-size: var(--font-size-sm);
+  }
+
+  .progress__label {
+    color: var(--color-text);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .progress__value {
+    color: var(--color-text-muted);
+  }
+
+  .progress__track {
+    width: 100%;
+    height: var(--space-2);
+    background: var(--color-surface-2);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress--sm .progress__track {
+    height: var(--space-1);
+  }
+
+  .progress--lg .progress__track {
+    height: var(--space-3);
+  }
+
+  .progress__bar {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: var(--radius-full);
+    transition: width 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress__bar-inner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    animation: progress-shimmer 2s infinite;
+  }
+
+  @keyframes progress-shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Tones */
+  .progress--neutral .progress__bar {
+    background: var(--color-primary);
+  }
+
+  .progress--info .progress__bar {
+    background: var(--color-info);
+  }
+
+  .progress--ok .progress__bar {
+    background: var(--color-success);
+  }
+
+  .progress--warn .progress__bar {
+    background: var(--color-warning);
+  }
+
+  .progress--bad .progress__bar {
+    background: var(--color-danger);
+  }
+</style>

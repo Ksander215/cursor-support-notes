@@ -1,42 +1,88 @@
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 
 AuditMode = Literal["safe", "normal", "full"]
 AuditStatus = Literal["queued", "running", "completed", "failed"]
 
 
 class AuditCreateRequest(BaseModel):
-    target: str = Field(..., description="Domain, IPv4, or URL to audit")
-    mode: AuditMode = Field("safe", description="Audit depth")
+    target: str = Field(
+        ...,
+        description="Domain, IPv4, or URL to audit",
+        examples=["example.com", "192.168.1.1", "https://example.com"],
+    )
+    mode: AuditMode = Field(
+        "safe",
+        description="Audit depth: 'safe' (quick scan), 'normal' (standard), 'full' (comprehensive)",
+    )
+
+    model_config = {"json_schema_extra": {"example": {"target": "example.com", "mode": "safe"}}}
 
 
 class AuditCreateResponse(BaseModel):
-    audit_id: str
-    status: AuditStatus
+    audit_id: str = Field(
+        ...,
+        description="UUID of the created audit",
+        examples=["550e8400-e29b-41d4-a716-446655440000"],
+    )
+    status: AuditStatus = Field(..., description="Initial status of the audit (usually 'queued')")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {"audit_id": "550e8400-e29b-41d4-a716-446655440000", "status": "queued"}
+        }
+    }
 
 
 class AuditSummary(BaseModel):
-    id: str
-    target: str
-    mode: AuditMode
-    status: AuditStatus
-    created_at: str
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    overall_score: Optional[float] = None
-    risk_level: Optional[str] = None
-    error: Optional[str] = None
+    id: str = Field(..., description="UUID of the audit")
+    target: str = Field(..., description="Target that was audited (domain, IP, or URL)")
+    mode: AuditMode = Field(..., description="Audit mode used")
+    status: AuditStatus = Field(
+        ..., description="Current status: queued, running, completed, or failed"
+    )
+    created_at: str = Field(..., description="ISO 8601 timestamp when audit was created")
+    started_at: str | None = Field(None, description="ISO 8601 timestamp when audit started")
+    completed_at: str | None = Field(None, description="ISO 8601 timestamp when audit completed")
+    overall_score: float | None = Field(
+        None, description="Security score (0-100), higher is better", ge=0, le=100
+    )
+    risk_level: str | None = Field(None, description="Risk level: low, medium, high, critical")
+    error: str | None = Field(None, description="Error message if status is 'failed'")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "target": "example.com",
+                "mode": "safe",
+                "status": "completed",
+                "created_at": "2026-01-29T10:00:00Z",
+                "started_at": "2026-01-29T10:00:05Z",
+                "completed_at": "2026-01-29T10:05:00Z",
+                "overall_score": 85.5,
+                "risk_level": "low",
+                "error": None,
+            }
+        }
+    }
 
 
 class AuditDetails(AuditSummary):
-    result: Optional[Dict[str, Any]] = None
-    report_md: Optional[str] = None
+    result: dict[str, Any] | None = None
+    report_md: str | None = None
 
 
 class AuditListResponse(BaseModel):
-    items: List[AuditSummary]
+    """Paginated list of audits with metadata"""
+
+    items: list[AuditSummary]
+    limit: int = Field(..., description="Requested limit (max items per page)")
+    has_more: bool = Field(..., description="True if there are more items beyond this page")
+    total: int | None = Field(
+        None, description="Total count of audits (if available, None for performance)"
+    )
 
 
 class AdminApiKeyCreateRequest(BaseModel):
@@ -45,16 +91,56 @@ class AdminApiKeyCreateRequest(BaseModel):
     Intended for early-stage MVP. Later we can replace with full user/org flows.
     """
 
-    org_name: str = Field(..., min_length=2, max_length=80)
-    key_name: Optional[str] = Field(None, max_length=120)
+    org_name: str = Field(
+        ..., min_length=2, max_length=80, description="Organization name", examples=["Acme Corp"]
+    )
+    key_name: str | None = Field(
+        None,
+        max_length=120,
+        description="Optional name for this API key",
+        examples=["Production API Key"],
+    )
     is_admin: bool = Field(False, description="Admin key can manage other keys (future use)")
 
     # Optional plan controls (if plan doesn't exist, it will be created/updated)
-    plan_code: str = Field("free", min_length=2, max_length=32)
-    plan_name: str = Field("Free", min_length=2, max_length=64)
-    requests_per_minute: Optional[int] = Field(None, ge=1, le=10000)
-    monthly_audits_quota: Optional[int] = Field(None, ge=1, le=1_000_000)
-    concurrency_limit: Optional[int] = Field(None, ge=1, le=1000)
+    plan_code: str = Field(
+        "free",
+        min_length=2,
+        max_length=32,
+        description="Plan code identifier",
+        examples=["free", "pro", "enterprise"],
+    )
+    plan_name: str = Field(
+        "Free",
+        min_length=2,
+        max_length=64,
+        description="Plan display name",
+        examples=["Free", "Pro Plan", "Enterprise"],
+    )
+    requests_per_minute: int | None = Field(
+        None, ge=1, le=10000, description="Rate limit: requests per minute"
+    )
+    monthly_audits_quota: int | None = Field(
+        None, ge=1, le=1_000_000, description="Monthly audit quota limit"
+    )
+    concurrency_limit: int | None = Field(
+        None, ge=1, le=1000, description="Maximum concurrent audits"
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "org_name": "Acme Corp",
+                "key_name": "Production API Key",
+                "is_admin": False,
+                "plan_code": "pro",
+                "plan_name": "Pro Plan",
+                "requests_per_minute": 100,
+                "monthly_audits_quota": 1000,
+                "concurrency_limit": 5,
+            }
+        }
+    }
 
 
 class AdminApiKeyCreateResponse(BaseModel):
@@ -69,13 +155,15 @@ class AdminApiKeyCreateResponse(BaseModel):
 
 class QuotaLimits(BaseModel):
     """Plan limits (None means unlimited)"""
-    requests_per_minute: Optional[int] = None
-    monthly_audits_quota: Optional[int] = None
-    concurrency_limit: Optional[int] = None
+
+    requests_per_minute: int | None = None
+    monthly_audits_quota: int | None = None
+    concurrency_limit: int | None = None
 
 
 class QuotaUsage(BaseModel):
     """Current usage for current month"""
+
     requests: int = Field(..., ge=0)
     audits_created: int = Field(..., ge=0)
     month_start: str  # ISO datetime
@@ -83,6 +171,7 @@ class QuotaUsage(BaseModel):
 
 class QuotaResponse(BaseModel):
     """Quota information for authenticated organization"""
+
     org_id: int
     org_name: str
     plan_code: str
@@ -93,58 +182,75 @@ class QuotaResponse(BaseModel):
 
 class AuditHistoryItem(BaseModel):
     """Single item in audit history timeline"""
+
     id: str
     completed_at: str
     overall_score: float
-    risk_level: Optional[str] = None
+    risk_level: str | None = None
 
 
 class AuditHistoryResponse(BaseModel):
     """History of audits for a target"""
+
     target: str
-    items: List[AuditHistoryItem]
+    items: list[AuditHistoryItem]
 
 
 class CIContext(BaseModel):
     """CI/CD context information"""
+
     provider: str = Field(..., description="CI provider: github, gitlab, azure")
-    repo: Optional[str] = Field(None, description="Repository identifier")
-    commit: Optional[str] = Field(None, description="Commit SHA")
-    branch: Optional[str] = Field(None, description="Branch name")
-    pull_request: Optional[str] = Field(None, description="Pull request number")
+    repo: str | None = Field(None, description="Repository identifier")
+    commit: str | None = Field(None, description="Commit SHA")
+    branch: str | None = Field(None, description="Branch name")
+    pull_request: str | None = Field(None, description="Pull request number")
 
 
 class CIScanRequest(BaseModel):
     """Request for CI/CD security scan"""
+
     target: str = Field(..., description="Domain, IPv4, or URL to audit")
     mode: AuditMode = Field("safe", description="Audit depth")
-    fail_on: List[str] = Field(
+    fail_on: list[str] = Field(
         default=["critical"],
-        description="Risk levels that should cause CI failure: critical, high, medium, low, or score threshold (e.g., 'score<60')"
+        description="Risk levels that should cause CI failure: critical, high, medium, low, or score threshold (e.g., 'score<60')",
     )
     wait: bool = Field(
         True,
-        description="Wait for scan completion (synchronous mode). If false, returns audit_id immediately."
+        description="Wait for scan completion (synchronous mode). If false, returns audit_id immediately.",
     )
-    timeout: Optional[int] = Field(
-        300,
-        ge=30,
-        le=1800,
-        description="Maximum wait time in seconds (only used if wait=true)"
+    timeout: int | None = Field(
+        300, ge=30, le=1800, description="Maximum wait time in seconds (only used if wait=true)"
     )
-    ci_context: Optional[CIContext] = Field(None, description="CI/CD context information")
+    ci_context: CIContext | None = Field(None, description="CI/CD context information")
 
 
 class CIScanResponse(BaseModel):
     """Response from CI/CD scan"""
-    audit_id: str
-    status: AuditStatus
+
+    audit_id: str = Field(..., description="UUID of the created audit")
+    status: AuditStatus = Field(..., description="Audit status")
     passed: bool = Field(..., description="Whether scan passed CI checks")
-    overall_score: Optional[float] = None
-    risk_level: Optional[str] = None
-    critical_issues_count: int = Field(0, ge=0)
-    failure_reason: Optional[str] = Field(None, description="Reason for failure if passed=false")
-    report_url: Optional[str] = Field(None, description="URL to view full report")
+    overall_score: float | None = Field(None, description="Security score (0-100)", ge=0, le=100)
+    risk_level: str | None = Field(None, description="Risk level: low, medium, high, critical")
+    critical_issues_count: int = Field(0, ge=0, description="Number of critical issues found")
+    failure_reason: str | None = Field(None, description="Reason for failure if passed=false")
+    report_url: str | None = Field(None, description="URL to view full report")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "audit_id": "550e8400-e29b-41d4-a716-446655440000",
+                "status": "completed",
+                "passed": True,
+                "overall_score": 85.5,
+                "risk_level": "low",
+                "critical_issues_count": 0,
+                "failure_reason": None,
+                "report_url": "/app/audits?id=550e8400-e29b-41d4-a716-446655440000",
+            }
+        }
+    }
 
 
 NotificationEvent = Literal[
@@ -159,27 +265,30 @@ NotificationChannel = Literal["email", "slack", "telegram", "webhook"]
 
 class NotificationSettingsCreate(BaseModel):
     """Request to create notification settings"""
+
     channel: NotificationChannel
-    events: List[NotificationEvent] = Field(..., min_length=1)
+    events: list[NotificationEvent] = Field(..., min_length=1)
     enabled: bool = Field(True)
-    config: Dict[str, Any] = Field(..., description="Channel-specific configuration")
+    config: dict[str, Any] = Field(..., description="Channel-specific configuration")
 
 
 class NotificationSettingsUpdate(BaseModel):
     """Request to update notification settings"""
-    events: Optional[List[NotificationEvent]] = None
-    enabled: Optional[bool] = None
-    config: Optional[Dict[str, Any]] = None
+
+    events: list[NotificationEvent] | None = None
+    enabled: bool | None = None
+    config: dict[str, Any] | None = None
 
 
 class NotificationSettingsResponse(BaseModel):
     """Notification settings response"""
+
     id: int
     org_id: int
     channel: NotificationChannel
-    events: List[NotificationEvent]
+    events: list[NotificationEvent]
     enabled: bool
-    config: Dict[str, Any]
+    config: dict[str, Any]
     created_at: str
     updated_at: str
 
@@ -189,19 +298,22 @@ StepStatus = Literal["pending", "running", "completed", "failed"]
 
 class ScanProgressStep(BaseModel):
     """Single step in scan progress"""
-    step_name: str = Field(..., description="Step identifier: ssl, headers, ports, web_vulnerabilities, report")
+
+    step_name: str = Field(
+        ..., description="Step identifier: ssl, headers, ports, web_vulnerabilities, report"
+    )
     step_status: StepStatus
-    step_progress: Optional[int] = Field(None, ge=0, le=100, description="Progress percentage (0-100)")
-    step_message: Optional[str] = Field(None, description="Optional status message")
-    step_error: Optional[str] = Field(None, description="Error message if failed")
-    started_at: Optional[str] = Field(None, description="ISO datetime when step started")
-    completed_at: Optional[str] = Field(None, description="ISO datetime when step completed")
+    step_progress: int | None = Field(None, ge=0, le=100, description="Progress percentage (0-100)")
+    step_message: str | None = Field(None, description="Optional status message")
+    step_error: str | None = Field(None, description="Error message if failed")
+    started_at: str | None = Field(None, description="ISO datetime when step started")
+    completed_at: str | None = Field(None, description="ISO datetime when step completed")
 
 
 class ScanProgressResponse(BaseModel):
     """Scan progress response"""
+
     audit_id: str
     overall_status: AuditStatus = Field(..., description="Overall audit status")
-    steps: List[ScanProgressStep] = Field(..., description="List of scan steps with progress")
+    steps: list[ScanProgressStep] = Field(..., description="List of scan steps with progress")
     overall_progress: int = Field(..., ge=0, le=100, description="Overall progress percentage")
-

@@ -65,7 +65,7 @@ class SafePortScanner:
             }
         except socket.gaierror:
             return {"port": port, "status": "ERROR", "error": "Hostname resolution failed"}
-        except Exception as e:  # noqa: B110
+        except Exception as e:
             return {"port": port, "status": "ERROR", "error": str(e)}
 
     def get_port_risk_level(self, port):
@@ -91,9 +91,7 @@ class SafePortScanner:
             results = []
             open_ports = []
 
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=self.max_workers
-            ) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 future_to_port = {
                     executor.submit(self.scan_port, ip_address, port): port
                     for port in ports_to_scan
@@ -106,7 +104,7 @@ class SafePortScanner:
                         results.append(result)
                         if result["status"] == "OPEN":
                             open_ports.append(result)
-                    except Exception as e:  # noqa: B110
+                    except Exception as e:
                         results.append({"port": port, "status": "ERROR", "error": str(e)})
 
             results.sort(key=lambda x: x["port"])
@@ -130,9 +128,7 @@ class SafePortScanner:
                     )
 
             if any(p["port"] == 22 for p in open_ports):
-                recommendations.append(
-                    "Настройте аутентификацию по ключам для SSH вместо паролей"
-                )
+                recommendations.append("Настройте аутентификацию по ключам для SSH вместо паролей")
             if any(p["port"] == 3306 for p in open_ports):
                 recommendations.append(
                     "Не открывайте порт MySQL (3306) для внешнего доступа. Используйте SSH туннель"
@@ -163,6 +159,5 @@ class SafePortScanner:
                 "timestamp": time.time(),
             }
 
-        except Exception as e:  # noqa: B110
-            return {"success": False, "error": f"Ошибка сканирования портов: {str(e)}"}
-
+        except Exception as e:
+            return {"success": False, "error": f"Ошибка сканирования портов: {e!s}"}

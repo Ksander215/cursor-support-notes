@@ -1,0 +1,67 @@
+# Минимальная конфигурация pre-commit (только критичные проверки)
+# Используйте эту версию если полная конфигурация не работает
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # Python formatting and linting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # Security checks (using local bandit if available)
+  - repo: local
+    hooks:
+      - id: bandit-local
+        name: Bandit security scan
+        entry: bash
+        args:
+          - -c
+          - |
+            if command -v bandit &> /dev/null; then
+              bandit -ll -r src/ || exit 1
+            else
+              echo "⚠️ Bandit not found. Skipping..."
+              exit 0
+            fi
+        language: system
+        files: ^src/.*\.py$
+        pass_filenames: false
+        always_run: false
+
+  # Custom hooks
+  - repo: local
+    hooks:
+      - id: check-secrets
+        name: Check for hardcoded secrets
+        entry: bash
+        args:
+          - -c
+          - |
+            if grep -rE "(api[_-]?key|secret|password|token|credential)\s*[:=]\s*['\"][^'\"]{10,}" \
+              --include="*.py" --include="*.ts" --include="*.js" \
+              --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+              --exclude-dir=.astro --exclude-dir=.next --exclude-dir=.cache \
+              src/ services/ 2>/dev/null | \
+              grep -v "SEC_SCANNER\|process\.env\|import\.meta\.env\|node_modules"; then
+              echo "⚠️ Potential secrets found!"
+              exit 1
+            fi
+        language: system
+        pass_filenames: false
+        always_run: true

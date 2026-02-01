@@ -5,9 +5,9 @@ Revises: 20260125_0001
 Create Date: 2026-01-25
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "20260125_0002"
 down_revision = "20260125_0001"
@@ -67,7 +67,9 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(["org_id"], ["organizations.id"], name="fk_api_keys_org_id_organizations"),
+        sa.ForeignKeyConstraint(
+            ["org_id"], ["organizations.id"], name="fk_api_keys_org_id_organizations"
+        ),
     )
     op.create_index("ix_api_keys_org_id", "api_keys", ["org_id"])
 
@@ -92,9 +94,15 @@ def upgrade() -> None:
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
-        sa.ForeignKeyConstraint(["org_id"], ["organizations.id"], name="fk_usage_buckets_org_id_organizations"),
-        sa.ForeignKeyConstraint(["api_key_id"], ["api_keys.id"], name="fk_usage_buckets_api_key_id_api_keys"),
-        sa.UniqueConstraint("org_id", "api_key_id", "metric", "bucket_start", name="uq_usage_bucket"),
+        sa.ForeignKeyConstraint(
+            ["org_id"], ["organizations.id"], name="fk_usage_buckets_org_id_organizations"
+        ),
+        sa.ForeignKeyConstraint(
+            ["api_key_id"], ["api_keys.id"], name="fk_usage_buckets_api_key_id_api_keys"
+        ),
+        sa.UniqueConstraint(
+            "org_id", "api_key_id", "metric", "bucket_start", name="uq_usage_bucket"
+        ),
     )
     op.create_index("ix_usage_buckets_org_id", "usage_buckets", ["org_id"])
     op.create_index("ix_usage_buckets_api_key_id", "usage_buckets", ["api_key_id"])

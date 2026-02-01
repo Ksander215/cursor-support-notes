@@ -1,0 +1,142 @@
+---
+// Tabs component for organizing content
+interface Props {
+  tabs: Array<{ id: string; label: string; icon?: string }>;
+  defaultTab?: string;
+  clientLoad?: boolean;
+}
+
+const { tabs, defaultTab, clientLoad = false } = Astro.props;
+const activeTab = defaultTab || tabs[0]?.id;
+const tabsId = `tabs-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<div class="tabs" data-tabs-id={tabsId}>
+  <div class="tabs__list" role="tablist">
+    {tabs.map((tab) => (
+      <button
+        class={`tabs__tab ${activeTab === tab.id ? "tabs__tab--active" : ""}`}
+        role="tab"
+        aria-selected={activeTab === tab.id}
+        aria-controls={`${tabsId}-panel-${tab.id}`}
+        id={`${tabsId}-tab-${tab.id}`}
+        data-tab-id={tab.id}
+      >
+        {tab.icon && <span class="tabs__icon">{tab.icon}</span>}
+        <span class="tabs__label">{tab.label}</span>
+      </button>
+    ))}
+  </div>
+  <div class="tabs__panels">
+    <slot />
+  </div>
+</div>
+
+{clientLoad && (
+  <script>
+    (function () {
+      const tabsContainer = document.querySelector(`[data-tabs-id="${tabsId}"]`);
+      if (!tabsContainer) return;
+
+      const tabs = tabsContainer.querySelectorAll(".tabs__tab");
+      const panels = tabsContainer.querySelectorAll('[role="tabpanel"]');
+
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          const tabId = tab.dataset.tabId;
+          if (!tabId) return;
+
+          // Update active tab
+          tabs.forEach((t) => {
+            t.classList.remove("tabs__tab--active");
+            t.setAttribute("aria-selected", "false");
+          });
+          tab.classList.add("tabs__tab--active");
+          tab.setAttribute("aria-selected", "true");
+
+          // Show/hide panels
+          panels.forEach((panel) => {
+            if (panel.id === `${tabsId}-panel-${tabId}`) {
+              panel.classList.add("tabs__panel--active");
+              panel.setAttribute("aria-hidden", "false");
+            } else {
+              panel.classList.remove("tabs__panel--active");
+              panel.setAttribute("aria-hidden", "true");
+            }
+          });
+        });
+      });
+    })();
+  </script>
+)}
+
+<style>
+  .tabs {
+    width: 100%;
+  }
+
+  .tabs__list {
+    display: flex;
+    gap: var(--space-1);
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: var(--space-4);
+  }
+
+  .tabs__tab {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: -1px;
+  }
+
+  .tabs__tab:hover {
+    color: var(--color-text);
+    background: var(--color-surface-1);
+  }
+
+  .tabs__tab--active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+
+  .tabs__icon {
+    font-size: var(--font-size-base);
+  }
+
+  .tabs__label {
+    white-space: nowrap;
+  }
+
+  .tabs__panels {
+    position: relative;
+  }
+
+  .tabs__panel {
+    display: none;
+  }
+
+  .tabs__panel--active {
+    display: block;
+  }
+
+  @media (max-width: 768px) {
+    .tabs__list {
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .tabs__tab {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+  }
+</style>

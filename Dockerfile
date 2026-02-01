@@ -7,7 +7,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl ca-certificates bash \
+    && apt-get install -y --no-install-recommends \
+        openssl \
+        ca-certificates \
+        bash \
+        nmap \
+        libpangocairo-1.0-0 \
+        libpango-1.0-0 \
+        libharfbuzz0b \
+        libgdk-pixbuf2.0-0 \
+        shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
@@ -26,4 +35,3 @@ RUN mkdir -p /app/data
 
 EXPOSE 8000
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
-

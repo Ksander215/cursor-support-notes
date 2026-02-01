@@ -1,0 +1,62 @@
+---
+const {
+  class: className = "",
+  striped = false,
+  hoverable = false,
+} = Astro.props as {
+  class?: string;
+  striped?: boolean;
+  hoverable?: boolean;
+};
+
+const classes = [
+  "table",
+  striped ? "table-striped" : "",
+  hoverable ? "table-hoverable" : "",
+  className,
+]
+  .filter(Boolean)
+  .join(" ");
+---
+
+<table class={classes}>
+  <slot />
+</table>
+
+<style>
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+
+  .table th,
+  .table td {
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table th {
+    font-weight: 650;
+    font-size: var(--text-sm);
+    color: var(--text-2);
+    letter-spacing: -0.01em;
+  }
+
+  .table td {
+    color: var(--text-1);
+  }
+
+  .table-striped tbody tr:nth-child(even) {
+    background: var(--surface-1);
+  }
+
+  .table-hoverable tbody tr:hover {
+    background: var(--surface-2);
+  }
+
+  .table tbody tr:last-child td {
+    border-bottom: none;
+  }
+</style>

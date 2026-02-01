@@ -19,62 +19,129 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+
+# Virtual environments
 .venv/
 venv/
 ENV/
 env/
 
-# Environment variables
-.env
-.env.local
-.env.production
-.env.mcp
-*.env
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
+# Environment variables (КРИТИЧНО! НЕ коммитить!)
+.env
+.env.local
+.env.production
+.env.*.local
+.env.mcp
+.env.secrets
+.env.development
+.env.test
+
 # Database
 *.db
 *.sqlite
 *.sqlite3
-data/*.db
-data/*.sqlite
+data/
+instance/
 
 # Logs
 *.log
 logs/
 
-# MCP Configuration (if contains tokens)
-.cursor/mcp.json
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend builds
+dist/
+build/
+.astro/
+.cache/
+.next/
+out/
+
+# Docker
+*.pid
+*.seed
+*.pid.lock
+
+# Secrets
+.secrets.baseline
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# API Keys and Tokens
+*_token.txt
+*_key.txt
+api_keys.json
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Docker
-.dockerignore
-
 # Backup files
 *.bak
 *.backup
-*.tar.gz
-sec-scanner-release.tar.gz
+*.old
+*.dump
+backup/
+backups/
+*.sql.gz
+*.tar.gz.bak
 
-# Node modules (for frontend)
-node_modules/
-services/frontend/node_modules/
-services/web-check/node_modules/
+# VPS deploy config (contains sensitive data)
+.vps-deploy.env
 
-# Build outputs
-dist/
-build/
-*.dist/
+# VPS deploy config
+.vps-deploy.env
+
+# Pre-commit
+.pre-commit-config.local.yaml
+
+# Alembic (не игнорируем migrations, только temp файлы)
+*.pyc
+__pycache__/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+*.cover
 
 # Temporary files
 *.tmp
 *.temp
+tmp/
+temp/
+
+# MCP (Model Context Protocol)
+.cursor/mcp-logs/
+.cursor/workbench/
+
+# Stripe test data
+stripe_test_*.json
+
+# Docker volumes data (если есть)
+volumes/
+docker-data/
+
+# Local development overrides
+docker-compose.override.yml
+docker-compose.local.yml
+sec-scanner-release.tar.gz

@@ -1,24 +1,33 @@
 import os
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from .models import ApiKey, Audit, Base, NotificationSettings, Organization, Plan, ScanProgress, UsageBucket
+from .models import (
+    ApiKey,
+    Audit,
+    Base,
+    NotificationSettings,
+    Organization,
+    Plan,
+    ScanProgress,
+    UsageBucket,
+)
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
-_ENGINE: Optional[Engine] = None
-_SessionLocal: Optional[sessionmaker] = None
+_ENGINE: Engine | None = None
+_SessionLocal: sessionmaker | None = None
 
 
-def get_database_url() -> Tuple[str, bool]:
+def get_database_url() -> tuple[str, bool]:
     """
     Returns (database_url, is_sqlite).
     Supports:
@@ -74,8 +83,8 @@ def create_audit(
     target: str,
     mode: str,
     *,
-    tenant_id: Optional[int] = None,
-    created_by_api_key_id: Optional[str] = None,
+    tenant_id: int | None = None,
+    created_by_api_key_id: str | None = None,
 ) -> str:
     audit_id = str(uuid.uuid4())
     with get_session() as s:
@@ -94,7 +103,7 @@ def create_audit(
 
 
 def set_audit_saas_context(
-    audit_id: str, *, tenant_id: Optional[int], created_by_api_key_id: Optional[str]
+    audit_id: str, *, tenant_id: int | None, created_by_api_key_id: str | None
 ) -> None:
     with get_session() as s:
         a = s.get(Audit, audit_id)
@@ -109,9 +118,9 @@ def upsert_plan(
     *,
     code: str,
     name: str,
-    requests_per_minute: Optional[int],
-    monthly_audits_quota: Optional[int],
-    concurrency_limit: Optional[int],
+    requests_per_minute: int | None,
+    monthly_audits_quota: int | None,
+    concurrency_limit: int | None,
 ) -> int:
     """
     Create or update plan by code.
@@ -146,10 +155,7 @@ def upsert_plan(
 
 def get_or_create_org(*, name: str, plan_id: int) -> int:
     with get_session() as s:
-        org = (
-            s.execute(select(Organization).where(Organization.name == name))
-            .scalar_one_or_none()
-        )
+        org = s.execute(select(Organization).where(Organization.name == name)).scalar_one_or_none()
         if org is None:
             org = Organization(name=name, plan_id=plan_id)
             s.add(org)
@@ -158,11 +164,51 @@ def get_or_create_org(*, name: str, plan_id: int) -> int:
         return int(org.id)
 
 
+def get_org_by_id(org_id: int) -> dict[str, Any] | None:
+    """Get organization by ID"""
+    with get_session() as s:
+        org = s.get(Organization, org_id)
+        if not org:
+            return None
+        return {
+            "id": org.id,
+            "name": org.name,
+            "plan_id": org.plan_id,
+            "is_active": org.is_active,
+        }
+
+
+def get_plan_by_code(plan_code: str) -> dict[str, Any] | None:
+    """Get plan by code"""
+    with get_session() as s:
+        plan = s.execute(select(Plan).where(Plan.code == plan_code)).scalar_one_or_none()
+        if not plan:
+            return None
+        return {
+            "id": plan.id,
+            "code": plan.code,
+            "name": plan.name,
+            "requests_per_minute": plan.requests_per_minute,
+            "monthly_audits_quota": plan.monthly_audits_quota,
+            "concurrency_limit": plan.concurrency_limit,
+        }
+
+
+def update_org_plan(org_id: int, plan_id: int) -> None:
+    """Update organization's plan"""
+    with get_session() as s:
+        org = s.get(Organization, org_id)
+        if not org:
+            raise ValueError(f"Organization {org_id} not found")
+        org.plan_id = plan_id
+        s.commit()
+
+
 def insert_api_key(
     *,
     api_key_id: str,
     org_id: int,
-    name: Optional[str],
+    name: str | None,
     prefix: str,
     last4: str,
     hashed_key: str,
@@ -190,24 +236,24 @@ def mark_started(audit_id: str) -> None:
         if not a:
             return
         a.status = "running"
-        a.started_at = datetime.now(timezone.utc)
+        a.started_at = datetime.now(UTC)
         s.commit()
 
 
 def mark_completed(
     audit_id: str,
     *,
-    overall_score: Optional[float],
-    risk_level: Optional[str],
-    result: Dict[str, Any],
-    report_md: Optional[str],
+    overall_score: float | None,
+    risk_level: str | None,
+    result: dict[str, Any],
+    report_md: str | None,
 ) -> None:
     with get_session() as s:
         a = s.get(Audit, audit_id)
         if not a:
             return
         a.status = "completed"
-        a.completed_at = datetime.now(timezone.utc)
+        a.completed_at = datetime.now(UTC)
         a.overall_score = overall_score
         a.risk_level = risk_level
         a.result_json = result
@@ -222,12 +268,12 @@ def mark_failed(audit_id: str, error: str) -> None:
         if not a:
             return
         a.status = "failed"
-        a.completed_at = datetime.now(timezone.utc)
+        a.completed_at = datetime.now(UTC)
         a.error = error
         s.commit()
 
 
-def get_audit(audit_id: str) -> Optional[Dict[str, Any]]:
+def get_audit(audit_id: str) -> dict[str, Any] | None:
     with get_session() as s:
         a = s.get(Audit, audit_id)
         if not a:
@@ -235,17 +281,92 @@ def get_audit(audit_id: str) -> Optional[Dict[str, Any]]:
         return _audit_to_dict(a)
 
 
-def list_audits(limit: int = 50, *, tenant_id: Optional[int] = None) -> List[Dict[str, Any]]:
+def list_audits(
+    limit: int = 50,
+    *,
+    tenant_id: int | None = None,
+    include_total: bool = False,
+    status: str | None = None,
+    target: str | None = None,
+    mode: str | None = None,
+    sort: str = "created_at",
+    order: str = "desc",
+) -> tuple[list[dict[str, Any]], bool, int | None]:
+    """
+    List audits with pagination metadata, filtering, and sorting.
+
+    Args:
+        limit: Maximum number of items to return
+        tenant_id: Filter by tenant/organization ID
+        include_total: Include total count in response
+        status: Filter by status (queued, running, completed, failed)
+        target: Filter by target (partial match, case-insensitive)
+        mode: Filter by mode (safe, normal, full)
+        sort: Field to sort by (created_at, completed_at, overall_score, target)
+        order: Sort order (asc, desc)
+
+    Returns:
+        (items, has_more, total_count)
+        - items: List of audit dictionaries
+        - has_more: True if there are more items beyond the limit
+        - total_count: Total count (if include_total=True), None otherwise
+    """
     lim = max(1, min(limit, 200))
+
+    # Validate sort field
+    valid_sort_fields = {"created_at", "completed_at", "overall_score", "target"}
+    if sort not in valid_sort_fields:
+        sort = "created_at"
+
+    # Validate order
+    order_lower = order.lower()
+    if order_lower not in {"asc", "desc"}:
+        order_lower = "desc"
+
     with get_session() as s:
-        q = select(Audit)
+        base_query = select(Audit)
+
+        # Apply filters
         if tenant_id is not None:
-            q = q.where(Audit.tenant_id == tenant_id)
-        rows = s.execute(q.order_by(Audit.created_at.desc()).limit(lim)).scalars()
-        return [_audit_to_dict(a) for a in rows]
+            base_query = base_query.where(Audit.tenant_id == tenant_id)
+
+        if status:
+            base_query = base_query.where(Audit.status == status)
+
+        if target:
+            # Case-insensitive partial match
+            base_query = base_query.where(Audit.target.ilike(f"%{target}%"))
+
+        if mode:
+            base_query = base_query.where(Audit.mode == mode)
+
+        # Apply sorting
+        sort_column = getattr(Audit, sort, Audit.created_at)
+        if order_lower == "asc":
+            order_by = sort_column.asc()
+        else:
+            order_by = sort_column.desc()
+
+        # Get one extra item to check if there are more
+        query = base_query.order_by(order_by).limit(lim + 1)
+        rows = list(s.execute(query).scalars())
+
+        # Check if there are more items
+        has_more = len(rows) > lim
+        items = rows[:lim]  # Take only requested limit
+
+        # Calculate total if requested (can be expensive for large tables)
+        total_count: int | None = None
+        if include_total:
+            count_query = select(func.count()).select_from(base_query.subquery())
+            total_count = s.execute(count_query).scalar() or 0
+
+        return ([_audit_to_dict(a) for a in items], has_more, total_count)
 
 
-def get_audit_history(target: str, limit: int = 50, *, tenant_id: Optional[int] = None) -> List[Dict[str, Any]]:
+def get_audit_history(
+    target: str, limit: int = 50, *, tenant_id: int | None = None
+) -> list[dict[str, Any]]:
     """
     Get historical audits for a specific target, ordered by completion time (most recent first).
     Only returns completed audits with overall_score.
@@ -264,7 +385,7 @@ def get_audit_history(target: str, limit: int = 50, *, tenant_id: Optional[int] 
         return [_audit_to_dict(a) for a in rows]
 
 
-def _audit_to_dict(a: Audit) -> Dict[str, Any]:
+def _audit_to_dict(a: Audit) -> dict[str, Any]:
     return {
         "id": a.id,
         "tenant_id": getattr(a, "tenant_id", None),
@@ -283,23 +404,20 @@ def _audit_to_dict(a: Audit) -> Dict[str, Any]:
     }
 
 
-def get_api_key_context_by_hash(hashed_key: str) -> Optional[Dict[str, Any]]:
+def get_api_key_context_by_hash(hashed_key: str) -> dict[str, Any] | None:
     """
     Returns a dict used by SaaS auth middleware (ApiKey + Organization + Plan flattened).
     """
     with get_session() as s:
-        row = (
-            s.execute(
-                select(ApiKey, Organization, Plan)
-                .join(Organization, ApiKey.org_id == Organization.id)
-                .join(Plan, Organization.plan_id == Plan.id)
-                .where(ApiKey.hashed_key == hashed_key)
-                .where(ApiKey.is_active.is_(True))
-                .where(ApiKey.revoked_at.is_(None))
-                .where(Organization.is_active.is_(True))
-            )
-            .first()
-        )
+        row = s.execute(
+            select(ApiKey, Organization, Plan)
+            .join(Organization, ApiKey.org_id == Organization.id)
+            .join(Plan, Organization.plan_id == Plan.id)
+            .where(ApiKey.hashed_key == hashed_key)
+            .where(ApiKey.is_active.is_(True))
+            .where(ApiKey.revoked_at.is_(None))
+            .where(Organization.is_active.is_(True))
+        ).first()
         if not row:
             return None
 
@@ -365,19 +483,16 @@ def increment_usage(
 
 def get_usage_sum_for_month(*, org_id: int, metric: str, bucket_start: datetime) -> int:
     with get_session() as s:
-        total = (
-            s.execute(
-                select(func.coalesce(func.sum(UsageBucket.count), 0))
-                .where(UsageBucket.org_id == org_id)
-                .where(UsageBucket.metric == metric)
-                .where(UsageBucket.bucket_start == bucket_start)
-            )
-            .scalar_one()
-        )
+        total = s.execute(
+            select(func.coalesce(func.sum(UsageBucket.count), 0))
+            .where(UsageBucket.org_id == org_id)
+            .where(UsageBucket.metric == metric)
+            .where(UsageBucket.bucket_start == bucket_start)
+        ).scalar_one()
         return int(total or 0)
 
 
-def get_quota_info(*, tenant_id: int) -> Optional[Dict[str, Any]]:
+def get_quota_info(*, tenant_id: int) -> dict[str, Any] | None:
     """
     Returns quota information for an organization:
     - Plan limits (requests_per_minute, monthly_audits_quota, concurrency_limit)
@@ -387,15 +502,15 @@ def get_quota_info(*, tenant_id: int) -> Optional[Dict[str, Any]]:
         org = s.get(Organization, tenant_id)
         if not org:
             return None
-        
+
         plan = s.get(Plan, org.plan_id)
         if not plan:
             return None
-        
+
         # Get current month bucket start (UTC)
-        now = datetime.now(timezone.utc)
-        month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
-        
+        now = datetime.now(UTC)
+        month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
+
         # Get usage for current month
         requests_used = get_usage_sum_for_month(
             org_id=tenant_id, metric="requests", bucket_start=month_start
@@ -403,7 +518,7 @@ def get_quota_info(*, tenant_id: int) -> Optional[Dict[str, Any]]:
         audits_used = get_usage_sum_for_month(
             org_id=tenant_id, metric="audits_created", bucket_start=month_start
         )
-        
+
         return {
             "org_id": org.id,
             "org_name": org.name,
@@ -422,7 +537,7 @@ def get_quota_info(*, tenant_id: int) -> Optional[Dict[str, Any]]:
         }
 
 
-def get_notification_settings(*, org_id: int) -> List[Dict[str, Any]]:
+def get_notification_settings(*, org_id: int) -> list[dict[str, Any]]:
     """Get all notification settings for an organization"""
     with get_session() as s:
         rows = s.execute(
@@ -445,9 +560,9 @@ def create_notification_settings(
     *,
     org_id: int,
     channel: str,
-    events: List[str],
+    events: list[str],
     enabled: bool,
-    config: Dict[str, Any],
+    config: dict[str, Any],
 ) -> int:
     """Create or update notification settings (upsert by org_id + channel)"""
     with get_session() as s:
@@ -461,12 +576,12 @@ def create_notification_settings(
             .scalars()
             .first()
         )
-        
+
         if existing:
             existing.events = events
             existing.enabled = enabled
             existing.config = config
-            existing.updated_at = datetime.now(timezone.utc)
+            existing.updated_at = datetime.now(UTC)
             s.commit()
             return existing.id
         else:
@@ -485,23 +600,23 @@ def create_notification_settings(
 def update_notification_settings(
     *,
     settings_id: int,
-    events: Optional[List[str]] = None,
-    enabled: Optional[bool] = None,
-    config: Optional[Dict[str, Any]] = None,
+    events: list[str] | None = None,
+    enabled: bool | None = None,
+    config: dict[str, Any] | None = None,
 ) -> None:
     """Update notification settings"""
     with get_session() as s:
         ns = s.get(NotificationSettings, settings_id)
         if not ns:
             return
-        
+
         if events is not None:
             ns.events = events
         if enabled is not None:
             ns.enabled = enabled
         if config is not None:
             ns.config = config
-        ns.updated_at = datetime.now(timezone.utc)
+        ns.updated_at = datetime.now(UTC)
         s.commit()
 
 
@@ -516,13 +631,14 @@ def delete_notification_settings(*, settings_id: int) -> None:
 
 # Scan Progress functions
 
+
 def create_scan_progress(
     *,
     audit_id: str,
     step_name: str,
     step_status: str = "pending",
-    step_progress: Optional[int] = None,
-    step_message: Optional[str] = None,
+    step_progress: int | None = None,
+    step_message: str | None = None,
 ) -> int:
     """Create or update scan progress step"""
     with get_session() as s:
@@ -536,7 +652,7 @@ def create_scan_progress(
             .scalars()
             .first()
         )
-        
+
         if existing:
             existing.step_status = step_status
             if step_progress is not None:
@@ -544,10 +660,10 @@ def create_scan_progress(
             if step_message is not None:
                 existing.step_message = step_message
             if step_status == "running" and existing.started_at is None:
-                existing.started_at = datetime.now(timezone.utc)
+                existing.started_at = datetime.now(UTC)
             if step_status in ("completed", "failed"):
-                existing.completed_at = datetime.now(timezone.utc)
-            existing.updated_at = datetime.now(timezone.utc)
+                existing.completed_at = datetime.now(UTC)
+            existing.updated_at = datetime.now(UTC)
             s.commit()
             return existing.id
         else:
@@ -557,8 +673,8 @@ def create_scan_progress(
                 step_status=step_status,
                 step_progress=step_progress,
                 step_message=step_message,
-                started_at=datetime.now(timezone.utc) if step_status == "running" else None,
-                completed_at=datetime.now(timezone.utc) if step_status in ("completed", "failed") else None,
+                started_at=datetime.now(UTC) if step_status == "running" else None,
+                completed_at=datetime.now(UTC) if step_status in ("completed", "failed") else None,
             )
             s.add(sp)
             s.commit()
@@ -569,10 +685,10 @@ def update_scan_progress_step(
     *,
     audit_id: str,
     step_name: str,
-    step_status: Optional[str] = None,
-    step_progress: Optional[int] = None,
-    step_message: Optional[str] = None,
-    step_error: Optional[str] = None,
+    step_status: str | None = None,
+    step_progress: int | None = None,
+    step_message: str | None = None,
+    step_error: str | None = None,
 ) -> None:
     """Update scan progress step"""
     with get_session() as s:
@@ -586,31 +702,35 @@ def update_scan_progress_step(
             .scalars()
             .first()
         )
-        
+
         if not sp:
             return
-        
+
         if step_status is not None:
             sp.step_status = step_status
             if step_status == "running" and sp.started_at is None:
-                sp.started_at = datetime.now(timezone.utc)
+                sp.started_at = datetime.now(UTC)
             if step_status in ("completed", "failed"):
-                sp.completed_at = datetime.now(timezone.utc)
+                sp.completed_at = datetime.now(UTC)
         if step_progress is not None:
             sp.step_progress = step_progress
         if step_message is not None:
             sp.step_message = step_message
         if step_error is not None:
             sp.step_error = step_error
-        sp.updated_at = datetime.now(timezone.utc)
+        sp.updated_at = datetime.now(UTC)
         s.commit()
 
 
-def get_scan_progress(audit_id: str) -> List[Dict[str, Any]]:
+def get_scan_progress(audit_id: str) -> list[dict[str, Any]]:
     """Get all progress steps for an audit"""
     with get_session() as s:
         steps = (
-            s.execute(select(ScanProgress).where(ScanProgress.audit_id == audit_id).order_by(ScanProgress.created_at))
+            s.execute(
+                select(ScanProgress)
+                .where(ScanProgress.audit_id == audit_id)
+                .order_by(ScanProgress.created_at)
+            )
             .scalars()
             .all()
         )
@@ -626,4 +746,3 @@ def get_scan_progress(audit_id: str) -> List[Dict[str, Any]]:
             }
             for sp in steps
         ]
-

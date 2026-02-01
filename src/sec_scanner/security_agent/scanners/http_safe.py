@@ -6,7 +6,6 @@ import requests
 
 from ...targets import ensure_public_target_or_raise
 
-
 _REDIRECT_STATUSES = {301, 302, 303, 307, 308}
 
 
@@ -48,4 +47,3 @@ def safe_request(
 
     # Shouldn't happen, but return the last response if redirect loop
     return resp  # type: ignore[return-value]
-

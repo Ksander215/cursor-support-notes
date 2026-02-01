@@ -57,7 +57,7 @@ if ! command -v node &> /dev/null; then
 else
     NODE_VERSION=$(node --version)
     echo "✅ Найден Node.js: $NODE_VERSION"
-    
+
     # Проверяем версию Node.js
     NODE_MAJOR=$(echo $NODE_VERSION | cut -d'v' -f2 | cut -d'.' -f1)
     if [ "$NODE_MAJOR" -lt 18 ] || ([ "$NODE_MAJOR" -eq 21 ]); then
@@ -66,7 +66,7 @@ else
         echo "   Но установка продолжится..."
     fi
     echo ""
-    
+
     # Устанавливаем frontend зависимости
     if [ -d "services/frontend" ]; then
         echo "📥 Устанавливаем frontend зависимости..."

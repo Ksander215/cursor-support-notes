@@ -1,6 +1,6 @@
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from .. import db
 from .providers import (
@@ -13,7 +13,7 @@ from .providers import (
 
 logger = logging.getLogger("sec_scanner.notifications")
 
-_PROVIDERS: Dict[str, NotificationProvider] = {
+_PROVIDERS: dict[str, NotificationProvider] = {
     "email": EmailProvider(),
     "slack": SlackProvider(),
     "telegram": TelegramProvider(),
@@ -25,14 +25,14 @@ class NotificationService:
     """Service for sending notifications"""
 
     @staticmethod
-    def get_provider(channel: str) -> Optional[NotificationProvider]:
+    def get_provider(channel: str) -> NotificationProvider | None:
         return _PROVIDERS.get(channel)
 
     @staticmethod
     def send_notification(
         org_id: int,
         event: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
     ) -> int:
         """
         Send notification for an event to all enabled channels for the organization.
@@ -47,20 +47,20 @@ class NotificationService:
         # Add timestamp to data
         data_with_timestamp = {
             **data,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         success_count = 0
         for settings in settings_list:
             if not settings.get("enabled"):
                 continue
-            
+
             if event not in settings.get("events", []):
                 continue
 
             channel = settings.get("channel")
             config = settings.get("config", {})
-            
+
             provider = NotificationService.get_provider(channel)
             if not provider:
                 logger.warning("Unknown notification channel: %s", channel)
@@ -103,6 +103,6 @@ class NotificationService:
         return success_count
 
 
-def send_notification(org_id: int, event: str, data: Dict[str, Any]) -> int:
+def send_notification(org_id: int, event: str, data: dict[str, Any]) -> int:
     """Convenience function to send notification"""
     return NotificationService.send_notification(org_id, event, data)

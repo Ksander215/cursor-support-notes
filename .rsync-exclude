@@ -1,0 +1,71 @@
+# Исключения для rsync при автоматическом деплое
+# Этот файл используется скриптом auto-deploy.sh
+
+# Environment files
+.env.production
+.env.local
+.env.*.local
+
+# Python
+*.pyc
+__pycache__/
+.venv/
+venv/
+
+# Node
+node_modules/
+package-lock.json
+yarn.lock
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+.astro/
+.cache/
+.next/
+out/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/
+pgdata/
+redisdata/
+
+# Logs
+*.log
+logs/
+
+# Docker volumes
+*.pid
+*.seed
+
+# Secrets
+.secrets.baseline
+*.pem
+*.key
+*.crt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VPS deploy config
+.vps-deploy.env
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
