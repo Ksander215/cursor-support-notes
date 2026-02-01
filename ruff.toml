@@ -36,7 +36,7 @@ select = [
     "UP",  # pyupgrade
     "ARG", # flake8-unused-arguments
     "SIM", # flake8-simplify
-    "TC",  # flake8-type-checking
+    "TCH", # flake8-type-checking
     "PTH", # flake8-use-pathlib
     "RUF", # Ruff-specific rules
 ]
@@ -61,7 +61,7 @@ ignore = [
     "SIM103", # needless-bool
     "SIM105", # suppressible-exception
     "SIM108", # if-else-block-instead-of-if-exp (readability preference)
-    "TC002",  # typing-only-third-party-import (not critical)
+    "TCH002", # typing-only-third-party-import (not critical)
     "F841",   # unused-variable (will fix later)
     "B007",   # unused-loop-control-variable (minor)
 ]
