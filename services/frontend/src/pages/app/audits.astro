@@ -3,7 +3,7 @@ import AppShell from "../../components/layout/AppShell.astro";
 import Button from "../../components/ui/Button.astro";
 import Card from "../../components/ui/Card.astro";
 import EmptyState from "../../components/ui/EmptyState.astro";
-import ErrorState from "../../components/ui/ErrorState.astro";
+import EnhancedError from "../../components/ui/EnhancedError.astro";
 import TimelineChart from "../../components/TimelineChart.astro";
 import VulnerabilityChart from "../../components/VulnerabilityChart.astro";
 import ScoreBreakdown from "../../components/ScoreBreakdown.astro";
@@ -23,9 +23,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
       </div>
     </div>
 
-    <div id="errorBox" style="margin-top: var(--space-3); display:none;">
-      <ErrorState title="Failed to load audits" messageId="errorText" retryId="retryListBtn" retryLabel="Retry" />
-    </div>
+    <EnhancedError id="errorBox" class="compact" />
     <div id="emptyBox" style="margin-top: var(--space-3); display:none;">
       <EmptyState title="No audits yet" description="Create one from the dashboard." actionHref="/app/dashboard" actionLabel="Go to dashboard" />
     </div>
@@ -53,9 +51,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     </div>
 
     <div class="muted" id="detailMeta" style="margin-top: var(--space-3);"></div>
-    <div id="detailError" style="margin-top: var(--space-3); display:none;">
-      <ErrorState title="Failed to load audit" messageId="detailErrorText" retryId="retryDetailBtn" retryLabel="Retry" />
-    </div>
+    <EnhancedError id="detailError" class="compact" />
     <div id="progressSection" style="margin-top: var(--space-3); display: none;">
       <ProgressIndicator client:load />
     </div>
@@ -88,8 +84,6 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 
     const elApiBaseLabel = document.getElementById("apiBaseLabel");
-    const elError = document.getElementById("errorBox");
-    const elErrorText = document.getElementById("errorText");
     const elList = document.getElementById("list");
 
     const elListView = document.getElementById("listView");
@@ -99,8 +93,6 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     const elDetailStatus = document.getElementById("detailStatus");
     const elDetailMeta = document.getElementById("detailMeta");
     const elDetailBody = document.getElementById("detailBody");
-    const elDetailError = document.getElementById("detailError");
-    const elDetailErrorText = document.getElementById("detailErrorText");
     const elTimelineSection = document.getElementById("timelineSection");
     const elChartsSection = document.getElementById("chartsSection");
     const elProgressSection = document.getElementById("progressSection");
@@ -138,26 +130,27 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
         .replaceAll("'", "&#039;");
     }
 
-    function setListError(msg) {
-      if (!elError) return;
-      if (!msg) {
-        elError.style.display = "none";
-        if (elErrorText) elErrorText.textContent = "";
+    // Enhanced error handling
+    function setListError(error, retryFn) {
+      if (!error) {
+        window.hideEnhancedError?.("errorBox");
         return;
       }
-      elError.style.display = "block";
-      if (elErrorText) elErrorText.textContent = msg;
+      window.showEnhancedError?.("errorBox", error, {
+        onRetry: retryFn,
+        compact: true,
+      });
     }
 
-    function setDetailError(msg) {
-      if (!elDetailError) return;
-      if (!msg) {
-        elDetailError.style.display = "none";
-        if (elDetailErrorText) elDetailErrorText.textContent = "";
+    function setDetailError(error, retryFn) {
+      if (!error) {
+        window.hideEnhancedError?.("detailError");
         return;
       }
-      elDetailError.style.display = "block";
-      if (elDetailErrorText) elDetailErrorText.textContent = msg;
+      window.showEnhancedError?.("detailError", error, {
+        onRetry: retryFn,
+        compact: true,
+      });
     }
 
     function badgeClassFor(status) {
@@ -204,7 +197,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     }
 
     async function refreshList() {
-      setListError("");
+      setListError(null);
       if (elApiBaseLabel) elApiBaseLabel.textContent = currentApiBase();
       if (!elList) return;
       setEmpty(false);
@@ -228,7 +221,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
         elList.innerHTML = items.map(renderRow).join("");
       } catch (e) {
         elList.innerHTML = "";
-        setListError(e?.message || String(e));
+        setListError(e, refreshList);
       }
     }
 
@@ -243,7 +236,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     }
 
     async function loadDetail(id) {
-      setDetailError("");
+      setDetailError(null);
       if (elDetailId) elDetailId.textContent = String(id);
       if (elDetailTarget) elDetailTarget.textContent = "";
       if (elDetailMeta) elDetailMeta.textContent = "";
@@ -317,7 +310,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
         }
       } catch (e) {
         elDetailBody.innerHTML = "";
-        setDetailError(e?.message || String(e));
+        setDetailError(e, () => loadDetail(id));
         if (elTimelineSection) elTimelineSection.style.display = "none";
         if (elChartsSection) elChartsSection.style.display = "none";
       }
@@ -393,7 +386,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
           step_progress: data.step_progress,
           step_message: data.message,
         };
-
+        
         if (stepIndex >= 0) {
           currentProgressSteps[stepIndex] = { ...currentProgressSteps[stepIndex], ...updatedStep };
         } else {
@@ -410,7 +403,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
         // Scan completed
         console.log("[Progress] Scan complete:", data.status, "score:", data.score);
         stopProgressPolling();
-
+        
         // Reload detail to show final state
         setTimeout(() => {
           const id = selectedId();
@@ -442,7 +435,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
         );
         progressWebSocket.connect();
         console.log("[Progress] Using WebSocket for real-time updates");
-
+        
         // Also load initial state via REST (WebSocket may take a moment)
         loadProgress(auditId);
       } catch (e) {
@@ -529,11 +522,6 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     }
 
     document.getElementById("refreshBtn")?.addEventListener("click", refreshList);
-    document.getElementById("retryListBtn")?.addEventListener("click", refreshList);
-    document.getElementById("retryDetailBtn")?.addEventListener("click", () => {
-      const id = selectedId();
-      if (id) loadDetail(id);
-    });
     elExportPdfBtn?.addEventListener("click", () => exportAudit("pdf"));
     elExportJsonBtn?.addEventListener("click", () => exportAudit("json"));
     elExportMarkdownBtn?.addEventListener("click", () => exportAudit("markdown"));

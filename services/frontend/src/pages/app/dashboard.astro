@@ -3,7 +3,7 @@ import AppShell from "../../components/layout/AppShell.astro";
 import Button from "../../components/ui/Button.astro";
 import Card from "../../components/ui/Card.astro";
 import EmptyState from "../../components/ui/EmptyState.astro";
-import ErrorState from "../../components/ui/ErrorState.astro";
+import EnhancedError from "../../components/ui/EnhancedError.astro";
 import Input from "../../components/ui/Input.astro";
 import QuotaDisplay from "../../components/QuotaDisplay.astro";
 import OnboardingWizard from "../../components/OnboardingWizard.astro";
@@ -62,9 +62,7 @@ import OnboardingWizard from "../../components/OnboardingWizard.astro";
     <div class="row">
       <h2 class="h2">Recent</h2>
     </div>
-    <div id="errorBox" style="margin-top: var(--space-3); display:none;">
-      <ErrorState title="Failed to load audits" messageId="errorText" retryId="retryRecentBtn" retryLabel="Retry" />
-    </div>
+    <EnhancedError id="errorBox" class="compact" />
     <div id="emptyBox" style="margin-top: var(--space-3); display:none;">
       <EmptyState title="No audits yet" description="Start one above." />
     </div>
@@ -77,12 +75,11 @@ import OnboardingWizard from "../../components/OnboardingWizard.astro";
   <script type="module" is:inline>
     import { makeClient } from "/src/lib/api.ts";
     import { getApiBaseUrl, getApiKey } from "/src/lib/storage.ts";
+    import { getErrorInfo } from "/src/lib/errors.ts";
 
     const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 
     const elList = document.getElementById("list");
-    const elError = document.getElementById("errorBox");
-    const elErrorText = document.getElementById("errorText");
     const elApiBaseLabel = document.getElementById("apiBaseLabel");
     const elCreateStatus = document.getElementById("createStatus");
 
@@ -101,15 +98,16 @@ import OnboardingWizard from "../../components/OnboardingWizard.astro";
       return makeClient(currentApiBase());
     }
 
-    function setError(msg) {
-      if (!elError) return;
-      if (!msg) {
-        elError.style.display = "none";
-        if (elErrorText) elErrorText.textContent = "";
+    // Enhanced error handling
+    function setError(error, retryFn) {
+      if (!error) {
+        window.hideEnhancedError?.("errorBox");
         return;
       }
-      elError.style.display = "block";
-      if (elErrorText) elErrorText.textContent = msg;
+      window.showEnhancedError?.("errorBox", error, {
+        onRetry: retryFn,
+        compact: true,
+      });
     }
 
     function setEmpty(isEmpty) {
@@ -293,7 +291,7 @@ import OnboardingWizard from "../../components/OnboardingWizard.astro";
     }
 
     async function refresh() {
-      setError("");
+      setError(null);
       setEmpty(false);
       if (!elList) return;
       setStatsLoading();
@@ -312,7 +310,7 @@ import OnboardingWizard from "../../components/OnboardingWizard.astro";
       } catch (e) {
         if (elList) elList.innerHTML = "";
         updateStats([]);
-        setError(e?.message || String(e));
+        setError(e, refresh);
       }
       // Refresh quota after audits
       await refreshQuota();
@@ -321,11 +319,10 @@ import OnboardingWizard from "../../components/OnboardingWizard.astro";
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
       refresh();
     });
-    document.getElementById("retryRecentBtn")?.addEventListener("click", refresh);
     document.getElementById("createForm")?.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       elCreateStatus.textContent = "";
-      setError("");
+      setError(null);
 
       const targetEl = document.getElementById("target");
       const modeEl = document.getElementById("mode");
@@ -340,7 +337,10 @@ import OnboardingWizard from "../../components/OnboardingWizard.astro";
         await refresh();
       } catch (e) {
         elCreateStatus.textContent = "";
-        setError(e?.message || String(e));
+        setError(e, () => {
+          // Retry the create audit
+          document.getElementById("createForm")?.dispatchEvent(new Event("submit"));
+        });
       }
     });
 
