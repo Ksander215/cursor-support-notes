@@ -145,3 +145,6 @@ docker-data/
 docker-compose.override.yml
 docker-compose.local.yml
 sec-scanner-release.tar.gz
+
+# Agent outputs - теперь сохраняются в Git для отслеживания отчётов агентов
+# agent_outputs/  # Раскомментировано для сохранения отчётов в Git
