@@ -220,11 +220,8 @@ def _update_org_plan_from_result(result: dict):
         org_id = result["org_id"]
         plan_code = result.get("plan_code")
 
-        if (
-            result.get("action") == "subscription_created"
-            and plan_code
-            or result.get("action") == "subscription_updated"
-            and plan_code
+        if (result.get("action") == "subscription_created" and plan_code) or (
+            result.get("action") == "subscription_updated" and plan_code
         ):
             # Update organization plan
             org = get_org_by_id(org_id)

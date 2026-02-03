@@ -1,0 +1,46 @@
+Welcome to Ubuntu 24.04.3 LTS (GNU/Linux 6.8.0-90-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Mon Feb  2 03:32:57 UTC 2026
+
+  System load:  0.01               Processes:             206
+  Usage of /:   24.4% of 95.82GB   Users logged in:       1
+  Memory usage: 11%                IPv4 address for eth0: 85.239.38.163
+  Swap usage:   0%
+
+
+Expanded Security Maintenance for Applications is not enabled.
+
+22 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+You have new mail.
+=== 📦 СТАТУС DOCKER КОНТЕЙНЕРОВ ===
+NAME                      IMAGE                                  COMMAND                  SERVICE     CREATED       STATUS                 PORTS
+sec-scanner-api-1         sec-scanner-api                        "/bin/bash /app/scri…"   api         5 hours ago   Up 5 hours (healthy)   127.0.0.1:8000->8000/tcp
+sec-scanner-db-1          docker.io/library/postgres:15-alpine   "docker-entrypoint.s…"   db          3 days ago    Up 3 days (healthy)    127.0.0.1:5432->5432/tcp
+sec-scanner-frontend-1    sec-scanner-frontend                   "docker-entrypoint.s…"   frontend    3 days ago    Up 3 days              127.0.0.1:3001->3000/tcp
+sec-scanner-redis-1       docker.io/library/redis:7-alpine       "docker-entrypoint.s…"   redis       3 days ago    Up 3 days (healthy)    127.0.0.1:6379->6379/tcp
+sec-scanner-web-check-1   sec-scanner-web-check                  "docker-entrypoint.s…"   web-check   6 hours ago   Up 6 hours             3000/tcp
+sec-scanner-worker-1      sec-scanner-worker                     "celery -A src.sec_s…"   worker      5 hours ago   Up 5 hours             8000/tcp
+
+=== 🏥 HEALTH CHECK API ===
+{"ok":true}
+
+=== 🔧 READINESS CHECK ===
+{"ok":true,"status":"ready"}
+
+=== 💾 ДИСКОВОЕ ПРОСТРАНСТВО ===
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        96G   24G   73G  25% /
+/dev/sda1        96G   24G   73G  25% /
+
+=== 🔐 ВЕРСИЯ ALEMBIC МИГРАЦИЙ ===
+20260201_0006 (head)

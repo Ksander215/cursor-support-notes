@@ -39,6 +39,13 @@ server {
     add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
+    # Content Security Policy for Frontend
+    # - 'self' for same-origin resources
+    # - Stripe.js for payment processing
+    # - 'unsafe-inline' for styles (required for Astro)
+    # - data: for inline images/fonts
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.stripe.com https://${API_DOMAIN}; frame-src https://js.stripe.com https://hooks.stripe.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com;" always;
+
     proxy_pass http://127.0.0.1:3001;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -65,6 +72,13 @@ server {
   add_header Referrer-Policy "strict-origin-when-cross-origin" always;
   add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
   add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+  # Content Security Policy for API domain
+  # - More permissive for Swagger UI and Web-Check
+  # - 'unsafe-inline' required for Swagger UI styles/scripts
+  # - blob: required for Swagger UI
+  # - CDNs for Swagger assets
+  add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://js.stripe.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https: blob:; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' https://api.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" always;
 
   # Block dotfiles except ACME challenges
   location ~ /\.(?!well-known) {

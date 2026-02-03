@@ -62,7 +62,8 @@ class YooKassaProvider(PaymentProvider):
             "Authorization": self._get_auth_header(),
             "Content-Type": "application/json",
             "Idempotence-Key": hashlib.md5(
-                json.dumps(data or {}, sort_keys=True).encode()
+                json.dumps(data or {}, sort_keys=True).encode(),
+                usedforsecurity=False,
             ).hexdigest(),
         }
 

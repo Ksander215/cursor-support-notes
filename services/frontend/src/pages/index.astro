@@ -143,6 +143,15 @@ const pricingPlans = [
         </p>
       </div>
     </section>
+
+    <section id="pricing" class="pricing-section" aria-labelledby="pricing-heading">
+      <h2 id="pricing-heading" class="pricing-header h2">Plans &amp; Pricing</h2>
+      <div class="pricing-grid">
+        {pricingPlans.map((plan) => (
+          <PricingCard plan={plan} />
+        ))}
+      </div>
+    </section>
   </main>
 </Base>
 

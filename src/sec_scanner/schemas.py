@@ -153,6 +153,44 @@ class AdminApiKeyCreateResponse(BaseModel):
     plan_code: str
 
 
+class ApiKeyCreateRequest(BaseModel):
+    """Request to create a new API key for the current organization."""
+
+    key_name: str | None = Field(
+        None,
+        max_length=120,
+        description="Optional name for this API key",
+        examples=["Production API Key", "Development Key"],
+    )
+
+
+class ApiKeyCreateResponse(BaseModel):
+    """Response after creating a new API key."""
+
+    api_key: str = Field(..., description="Plain API key. Shown ONCE. Store securely.")
+    api_key_id: str
+    prefix: str
+    last4: str
+    key_name: str | None = None
+
+
+class ApiKeyInfo(BaseModel):
+    """API key metadata (without the plain key)."""
+
+    id: str
+    name: str | None = None
+    prefix: str
+    last4: str
+    is_admin: bool
+    created_at: str | None = None
+
+
+class ApiKeyListResponse(BaseModel):
+    """List of API keys for the current organization."""
+
+    keys: list[ApiKeyInfo]
+
+
 class QuotaLimits(BaseModel):
     """Plan limits (None means unlimited)"""
 
@@ -317,3 +355,69 @@ class ScanProgressResponse(BaseModel):
     overall_status: AuditStatus = Field(..., description="Overall audit status")
     steps: list[ScanProgressStep] = Field(..., description="List of scan steps with progress")
     overall_progress: int = Field(..., ge=0, le=100, description="Overall progress percentage")
+
+
+# ─────────────────────────────────────────────────────────
+# Audit Log Schemas
+# ─────────────────────────────────────────────────────────
+
+
+AuditLogAction = Literal[
+    "api_key.created",
+    "api_key.revoked",
+    "api_key.rotated",
+    "auth.success",
+    "auth.failure",
+    "auth.rate_limited",
+    "organization.created",
+    "organization.updated",
+    "plan.changed",
+    "settings.updated",
+    "notification.created",
+    "notification.updated",
+    "notification.deleted",
+    "payment.initiated",
+    "payment.completed",
+    "payment.failed",
+    "subscription.created",
+    "subscription.cancelled",
+    "admin.access",
+    "admin.action",
+    "data.export",
+    "data.sensitive_access",
+]
+
+AuditLogStatus = Literal["success", "failure", "denied", "pending"]
+ActorType = Literal["user", "api_key", "system", "anonymous", "webhook"]
+
+
+class AuditLogEntry(BaseModel):
+    """Single audit log entry"""
+
+    id: int = Field(..., description="Unique log entry ID")
+    timestamp: str = Field(..., description="ISO 8601 timestamp of the event")
+    action: str = Field(..., description="Action type (e.g., api_key.created)")
+    actor_type: ActorType = Field(
+        ..., description="Type of actor (user, api_key, system, anonymous)"
+    )
+    actor_id: str | None = Field(None, description="ID of the actor (API key ID, user ID)")
+    actor_ip: str | None = Field(None, description="IP address of the actor")
+    resource_type: str = Field(..., description="Type of resource affected")
+    resource_id: str | None = Field(None, description="ID of the affected resource")
+    org_id: int | None = Field(None, description="Organization ID context")
+    details: dict[str, Any] | None = Field(None, description="Action-specific details")
+    status: AuditLogStatus = Field(..., description="Result status (success, failure, denied)")
+    error_message: str | None = Field(None, description="Error message if failed")
+    request_id: str | None = Field(None, description="Request correlation ID")
+    request_path: str | None = Field(None, description="API endpoint path")
+    request_method: str | None = Field(None, description="HTTP method")
+
+
+class AuditLogListResponse(BaseModel):
+    """Audit log list response with pagination"""
+
+    items: list[AuditLogEntry] = Field(..., description="List of audit log entries")
+    total: int = Field(..., description="Total number of matching entries")
+    limit: int = Field(..., description="Page size")
+    offset: int = Field(..., description="Current offset")
+    has_more: bool = Field(..., description="Whether more results exist")

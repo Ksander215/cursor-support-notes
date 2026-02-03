@@ -7,7 +7,7 @@ FROM docker.io/library/node:22-bullseye AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 
-RUN npm ci
+RUN npm install
 
 COPY . .
 ENV NODE_ENV=production
@@ -23,4 +23,4 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 
 EXPOSE 3000
-CMD ["npx", "astro", "preview", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["npx", "astro", "preview", "--host", "0.0.0.0", "--port", "3000", "--allowed-hosts=sec-scanner.pro,www.sec-scanner.pro,api.sec-scanner.pro,localhost,127.0.0.1"]

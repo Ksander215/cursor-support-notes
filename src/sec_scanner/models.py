@@ -114,7 +114,9 @@ class NotificationSettings(Base):
     org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
 
     channel = Column(String, nullable=False)  # email, slack, telegram, webhook
-    events = Column(JSON, nullable=False)  # список событий: ["scan_completed", "critical_vulnerability_found", ...]
+    events = Column(
+        JSON, nullable=False
+    )  # список событий: ["scan_completed", "critical_vulnerability_found", ...]
     enabled = Column(Boolean, nullable=False, server_default=text("true"))
 
     # Канал-специфичные настройки (JSON)
@@ -137,7 +139,9 @@ class ScanProgress(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     audit_id = Column(String, ForeignKey("audits.id"), nullable=False, index=True)
 
-    step_name = Column(String, nullable=False)  # e.g. "ssl", "headers", "ports", "web_vulnerabilities", "report"
+    step_name = Column(
+        String, nullable=False
+    )  # e.g. "ssl", "headers", "ports", "web_vulnerabilities", "report"
     step_status = Column(String, nullable=False)  # "pending", "running", "completed", "failed"
     step_progress = Column(Integer, nullable=True)  # 0-100 percentage
     step_message = Column(String, nullable=True)  # optional status message
@@ -149,3 +153,55 @@ class ScanProgress(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+
+class AuditLog(Base):
+    """
+    Security audit log for tracking admin/sensitive actions.
+
+    This table stores security-relevant events for compliance and investigation:
+    - API key creation/revocation
+    - Plan changes
+    - Settings modifications
+    - Admin authentication attempts
+    - Sensitive data access
+
+    Retention: Keep for compliance period (typically 1-7 years).
+    """
+
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # When the action occurred
+    timestamp = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+
+    # What action was performed
+    action = Column(String, nullable=False, index=True)  # e.g. "api_key.created", "plan.changed"
+
+    # Who performed the action
+    actor_type = Column(String, nullable=False)  # "user", "api_key", "system", "anonymous"
+    actor_id = Column(String, nullable=True, index=True)  # API key ID, user ID, or null for system
+    actor_ip = Column(String, nullable=True)  # IP address of the actor
+    actor_user_agent = Column(String, nullable=True)  # User-Agent header
+
+    # What was affected
+    resource_type = Column(String, nullable=False)  # "api_key", "organization", "plan", "settings"
+    resource_id = Column(String, nullable=True, index=True)  # ID of the affected resource
+
+    # Organization context
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+
+    # Action details (JSON)
+    # Contains action-specific data like old/new values, request parameters, etc.
+    details = Column(JSON, nullable=True)
+
+    # Result of the action
+    status = Column(String, nullable=False)  # "success", "failure", "denied"
+    error_message = Column(Text, nullable=True)  # Error message if failed
+
+    # Request context
+    request_id = Column(String, nullable=True, index=True)  # Correlation ID from X-Request-ID
+    request_path = Column(String, nullable=True)  # API endpoint path
+    request_method = Column(String, nullable=True)  # HTTP method

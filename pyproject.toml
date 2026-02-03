@@ -60,6 +60,7 @@ skips = ["B101", "B601"]  # Skip assert_used and shell_injection_subprocess
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

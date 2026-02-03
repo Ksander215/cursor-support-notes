@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from .models import (
     ApiKey,
     Audit,
+    AuditLog,
     Base,
     NotificationSettings,
     Organization,
@@ -228,6 +229,45 @@ def insert_api_key(
             )
         )
         s.commit()
+
+
+def get_api_keys_by_org(org_id: int) -> list[dict[str, Any]]:
+    """Get list of API keys for an organization (metadata only, no plain keys)."""
+    with get_session() as s:
+        keys = (
+            s.execute(
+                select(ApiKey)
+                .where(ApiKey.org_id == org_id)
+                .where(ApiKey.is_active.is_(True))
+                .where(ApiKey.revoked_at.is_(None))
+                .order_by(ApiKey.created_at.desc())
+            )
+            .scalars()
+            .all()
+        )
+
+        return [
+            {
+                "id": key.id,
+                "name": key.name,
+                "prefix": key.prefix,
+                "last4": key.last4,
+                "is_admin": bool(key.is_admin),
+                "created_at": key.created_at.isoformat() if key.created_at else None,
+            }
+            for key in keys
+        ]
+
+
+def revoke_api_key(api_key_id: str, org_id: int) -> bool:
+    """Revoke an API key. Returns True if revoked, False if not found or already revoked."""
+    with get_session() as s:
+        key = s.get(ApiKey, api_key_id)
+        if not key or key.org_id != org_id or key.revoked_at is not None:
+            return False
+        key.revoked_at = datetime.now(UTC)
+        s.commit()
+        return True
 
 
 def mark_started(audit_id: str) -> None:
@@ -746,3 +786,135 @@ def get_scan_progress(audit_id: str) -> list[dict[str, Any]]:
             }
             for sp in steps
         ]
+
+
+# ─────────────────────────────────────────────────────────
+# Audit Log Functions
+# ─────────────────────────────────────────────────────────
+
+
+def insert_audit_log(log_data: dict[str, Any]) -> int:
+    """
+    Insert an audit log entry.
+
+    Args:
+        log_data: Dictionary with audit log fields
+
+    Returns:
+        The ID of the created audit log entry
+    """
+    with get_session() as s:
+        log_entry = AuditLog(
+            timestamp=log_data.get("timestamp"),
+            action=log_data["action"],
+            actor_type=log_data["actor_type"],
+            actor_id=log_data.get("actor_id"),
+            actor_ip=log_data.get("actor_ip"),
+            actor_user_agent=log_data.get("actor_user_agent"),
+            resource_type=log_data["resource_type"],
+            resource_id=log_data.get("resource_id"),
+            org_id=log_data.get("org_id"),
+            details=log_data.get("details"),
+            status=log_data["status"],
+            error_message=log_data.get("error_message"),
+            request_id=log_data.get("request_id"),
+            request_path=log_data.get("request_path"),
+            request_method=log_data.get("request_method"),
+        )
+        s.add(log_entry)
+        s.commit()
+        s.refresh(log_entry)
+        return log_entry.id
+
+
+def get_audit_logs(
+    *,
+    org_id: int | None = None,
+    action: str | None = None,
+    actor_id: str | None = None,
+    resource_type: str | None = None,
+    resource_id: str | None = None,
+    status: str | None = None,
+    from_timestamp: datetime | None = None,
+    to_timestamp: datetime | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> tuple[list[dict[str, Any]], int]:
+    """
+    Query audit logs with filters.
+
+    Args:
+        org_id: Filter by organization ID
+        action: Filter by action type
+        actor_id: Filter by actor ID
+        resource_type: Filter by resource type
+        resource_id: Filter by resource ID
+        status: Filter by status
+        from_timestamp: Filter by timestamp (from)
+        to_timestamp: Filter by timestamp (to)
+        limit: Maximum number of results
+        offset: Offset for pagination
+
+    Returns:
+        Tuple of (list of audit logs, total count)
+    """
+    with get_session() as s:
+        # Build query
+        query = select(AuditLog)
+        count_query = select(func.count()).select_from(AuditLog)
+
+        # Apply filters
+        if org_id is not None:
+            query = query.where(AuditLog.org_id == org_id)
+            count_query = count_query.where(AuditLog.org_id == org_id)
+        if action is not None:
+            query = query.where(AuditLog.action == action)
+            count_query = count_query.where(AuditLog.action == action)
+        if actor_id is not None:
+            query = query.where(AuditLog.actor_id == actor_id)
+            count_query = count_query.where(AuditLog.actor_id == actor_id)
+        if resource_type is not None:
+            query = query.where(AuditLog.resource_type == resource_type)
+            count_query = count_query.where(AuditLog.resource_type == resource_type)
+        if resource_id is not None:
+            query = query.where(AuditLog.resource_id == resource_id)
+            count_query = count_query.where(AuditLog.resource_id == resource_id)
+        if status is not None:
+            query = query.where(AuditLog.status == status)
+            count_query = count_query.where(AuditLog.status == status)
+        if from_timestamp is not None:
+            query = query.where(AuditLog.timestamp >= from_timestamp)
+            count_query = count_query.where(AuditLog.timestamp >= from_timestamp)
+        if to_timestamp is not None:
+            query = query.where(AuditLog.timestamp <= to_timestamp)
+            count_query = count_query.where(AuditLog.timestamp <= to_timestamp)
+
+        # Get total count
+        total = s.execute(count_query).scalar() or 0
+
+        # Apply ordering and pagination
+        query = query.order_by(AuditLog.timestamp.desc()).limit(limit).offset(offset)
+
+        # Execute query
+        logs = s.execute(query).scalars().all()
+
+        return [
+            {
+                "id": log.id,
+                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                "action": log.action,
+                "actor_type": log.actor_type,
+                "actor_id": log.actor_id,
+                "actor_ip": log.actor_ip,
+                "resource_type": log.resource_type,
+                "resource_id": log.resource_id,
+                "org_id": log.org_id,
+                "details": log.details,
+                "status": log.status,
+                "error_message": log.error_message,
+                "request_id": log.request_id,
+                "request_path": log.request_path,
+                "request_method": log.request_method,
+            }
+            for log in logs
+        ], total

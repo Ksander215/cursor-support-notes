@@ -17,8 +17,8 @@ if config.config_file_name is not None:
 # Make `src` importable
 sys.path.insert(0, os.path.abspath("."))
 
-from src.sec_scanner.db import get_database_url  # noqa: E402
-from src.sec_scanner.models import Base  # noqa: E402
+from src.sec_scanner.db import get_database_url
+from src.sec_scanner.models import Base
 
 target_metadata = Base.metadata
 

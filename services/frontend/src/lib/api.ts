@@ -78,6 +78,31 @@ export type ScanProgressResponse = {
   overall_progress: number;
 };
 
+export type ApiKeyCreateRequest = {
+  key_name?: string | null;
+};
+
+export type ApiKeyCreateResponse = {
+  api_key: string;
+  api_key_id: string;
+  prefix: string;
+  last4: string;
+  key_name?: string | null;
+};
+
+export type ApiKeyInfo = {
+  id: string;
+  name?: string | null;
+  prefix: string;
+  last4: string;
+  is_admin: boolean;
+  created_at?: string | null;
+};
+
+export type ApiKeyListResponse = {
+  keys: ApiKeyInfo[];
+};
+
 type RequestOpts = {
   method?: string;
   body?: unknown;
@@ -294,6 +319,12 @@ export function makeClient(apiBaseUrl: string) {
     },
     getAuditProgress: (auditId: string, apiKey?: string | null) =>
       requestJson<ScanProgressResponse>(`/api/v1/audits/${encodeURIComponent(auditId)}/progress`, { apiKey }),
+    createApiKey: (payload: ApiKeyCreateRequest, apiKey?: string | null) =>
+      requestJson<ApiKeyCreateResponse>(`/api/v1/api-keys`, { method: "POST", body: payload, apiKey }),
+    listApiKeys: (apiKey?: string | null) =>
+      requestJson<ApiKeyListResponse>(`/api/v1/api-keys`, { apiKey }),
+    revokeApiKey: (keyId: string, apiKey?: string | null) =>
+      requestJson<{ detail: string }>(`/api/v1/api-keys/${encodeURIComponent(keyId)}`, { method: "DELETE", apiKey }),
     createProgressWebSocket,
   };
 }

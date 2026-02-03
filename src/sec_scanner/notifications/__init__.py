@@ -8,11 +8,11 @@ from .providers import (
 from .service import NotificationService, send_notification
 
 __all__ = [
-    "NotificationProvider",
     "EmailProvider",
+    "NotificationProvider",
+    "NotificationService",
     "SlackProvider",
     "TelegramProvider",
     "WebhookProvider",
-    "NotificationService",
     "send_notification",
 ]

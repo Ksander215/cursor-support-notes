@@ -28,10 +28,62 @@ import Input from "../../components/ui/Input.astro";
           <option value="reduced">Reduced (less blur/motion)</option>
         </select>
       </div>
+      <div id="saveFeedback" style="display: none; margin-bottom: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius); font-weight: 500; min-height: 2.5em; align-items: center;"></div>
       <div class="cluster">
         <Button id="saveSettings" variant="primary">Save</Button>
         <Button id="clearKey">Clear key</Button>
-        <span class="muted" id="settingsStatus" role="status" aria-live="polite" style="min-height: 1em;"></span>
+        <span id="settingsStatus" role="status" aria-live="polite" style="min-height: 1.5em; min-width: 12em; display: inline-flex; align-items: center; gap: 0.5em; padding: 0 var(--space-2); font-weight: 500;"></span>
+      </div>
+    </div>
+  </Card>
+
+  <Card class="section" style="margin-top: var(--space-4);">
+    <h2 class="h3">API Keys Management</h2>
+    <p class="muted" style="margin: var(--space-2) 0 var(--space-4);">
+      Create a new API key for your organization. The key will be shown only once - save it securely.
+    </p>
+
+    <!-- Existing keys list -->
+    <div id="existingKeysSection" style="margin-bottom: var(--space-4);">
+      <h3 class="h4" style="margin-bottom: var(--space-2);">Your API Keys</h3>
+      <div id="existingKeysList" style="display: grid; gap: var(--space-2);">
+        <p class="muted" id="keysLoading">Loading...</p>
+      </div>
+    </div>
+
+    <div style="display:grid; gap: 10px;">
+      <div class="field">
+        <label class="muted" for="newKeyName">Key name (optional)</label>
+        <Input id="newKeyName" placeholder="e.g., Production API Key, Development Key" />
+      </div>
+      <div class="cluster">
+        <Button id="createApiKey" variant="primary">Create new API key</Button>
+        <Button id="refreshKeys" variant="secondary">Refresh list</Button>
+        <span id="createKeyStatus" role="status" aria-live="polite" style="min-height: 1.5em; display: inline-flex; align-items: center; gap: 0.5em; padding: 0 var(--space-2); font-weight: 500;"></span>
+      </div>
+
+      <!-- New key display area (hidden by default) -->
+      <div id="newKeyDisplay" style="display: none; margin-top: var(--space-4); padding: var(--space-4); background: var(--color-bg-subtle); border-radius: var(--radius); border: 1px solid var(--color-border);">
+        <h3 class="h4" style="margin-top: 0;">⚠️ Save this key now!</h3>
+        <p class="muted" style="margin: var(--space-2) 0;">
+          This key will be shown only once. Copy it and store it securely.
+        </p>
+        <div class="field" style="margin-top: var(--space-3);">
+          <label class="muted" for="newKeyValue">API Key</label>
+          <div style="display: flex; gap: var(--space-2); align-items: center;">
+            <Input id="newKeyValue" type="text" readonly style="font-family: monospace; background: var(--color-bg);" />
+            <Button id="copyNewKey" variant="secondary" style="white-space: nowrap;">Copy</Button>
+          </div>
+        </div>
+        <div style="margin-top: var(--space-2); font-size: 0.875rem; color: var(--color-text-muted);">
+          <strong>Key ID:</strong> <span id="newKeyId"></span><br>
+          <strong>Prefix:</strong> <span id="newKeyPrefix"></span><br>
+          <strong>Last 4:</strong> <span id="newKeyLast4"></span>
+        </div>
+        <div style="margin-top: var(--space-3);">
+          <Button id="useNewKey" variant="primary">Use this key</Button>
+          <Button id="closeNewKey" variant="secondary" style="margin-left: var(--space-2);">Close</Button>
+        </div>
       </div>
     </div>
   </Card>
@@ -39,33 +91,64 @@ import Input from "../../components/ui/Input.astro";
   <script type="module" is:inline>
     import { getApiBaseUrl, getApiKey, setApiBaseUrl, setApiKey } from "/src/lib/storage.ts";
     import { getEffects, setEffects } from "/src/lib/effects.ts";
+    import { makeClient } from "/src/lib/api.ts";
 
     const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 
+    function showToast(message, isError = false) {
+      const existing = document.getElementById("settings-toast");
+      if (existing) existing.remove();
+      const toast = document.createElement("div");
+      toast.id = "settings-toast";
+      toast.setAttribute("role", "alert");
+      toast.style.cssText = "position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9999; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.2); max-width: 90%;";
+      toast.style.background = isError ? "#d32f2f" : "#2e7d32";
+      toast.style.color = "#fff";
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+
+    function runWhenReady(fn) {
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", fn);
+      } else {
+        fn();
+      }
+    }
+
+    runWhenReady(function init() {
     const elApiBase = document.getElementById("apiBase");
     const elApiKey = document.getElementById("apiKey");
     const elEffectsMode = document.getElementById("effectsMode");
     const elSettingsStatus = document.getElementById("settingsStatus");
 
-    if (!(elApiBase instanceof HTMLInputElement) || !(elApiKey instanceof HTMLInputElement)) {
-      // Page markup changed unexpectedly; avoid hard crash.
-      console.warn("Settings: required inputs not found");
-      // Nothing else we can do safely.
-      return;
+    if (elApiBase && elApiKey) {
+      elApiBase.value = getApiBaseUrl(DEFAULT_API_BASE);
+      elApiKey.value = getApiKey() || "";
     }
-
-    // Init
-    elApiBase.value = getApiBaseUrl(DEFAULT_API_BASE);
-    elApiKey.value = getApiKey() || "";
-
     const initialEffects = getEffects() || "full";
     document.documentElement.setAttribute("data-effects", initialEffects);
     if (elEffectsMode) elEffectsMode.value = initialEffects;
 
-    function flashStatus(text) {
-      if (!elSettingsStatus) return;
-      elSettingsStatus.textContent = text;
-      setTimeout(() => (elSettingsStatus.textContent = ""), 1200);
+    const elSaveFeedback = document.getElementById("saveFeedback");
+
+    function flashStatus(text, el, isError = false) {
+      showToast(text, isError);
+      if (el) {
+        el.textContent = text;
+        el.style.color = isError ? "#d32f2f" : "#2e7d32";
+        el.style.opacity = "1";
+        setTimeout(() => { el.textContent = ""; el.style.opacity = "1"; }, 4000);
+      }
+      if (elSaveFeedback) {
+        elSaveFeedback.textContent = text;
+        elSaveFeedback.style.display = "flex";
+        elSaveFeedback.style.background = isError ? "rgba(211, 47, 47, 0.2)" : "rgba(46, 125, 50, 0.2)";
+        elSaveFeedback.style.color = isError ? "#d32f2f" : "#2e7d32";
+        elSaveFeedback.style.border = "1px solid " + (isError ? "#d32f2f" : "#2e7d32");
+        setTimeout(() => { elSaveFeedback.style.display = "none"; elSaveFeedback.textContent = ""; }, 4000);
+      }
     }
 
     function normalizeBase(v) {
@@ -81,22 +164,262 @@ import Input from "../../components/ui/Input.astro";
       }
     }
 
-    document.getElementById("saveSettings")?.addEventListener("click", () => {
-      const base = normalizeBase(elApiBase.value);
+    const saveBtnEl = document.getElementById("saveSettings");
+    if (saveBtnEl) {
+    saveBtnEl.addEventListener("click", async () => {
+      const elApiBase = document.getElementById("apiBase");
+      const elApiKey = document.getElementById("apiKey");
+      const elEffectsMode = document.getElementById("effectsMode");
+      const base = normalizeBase(elApiBase?.value ?? "");
       if (base && !isValidHttpUrl(base)) {
-        flashStatus("Invalid API base URL.");
+        flashStatus("Неверный URL API", elSettingsStatus, true);
         return;
       }
-      setApiBaseUrl(base);
-      setApiKey(elApiKey.value);
-      setEffects(elEffectsMode && elEffectsMode.value === "reduced" ? "reduced" : "full");
-      flashStatus("Saved.");
+
+      const saveBtn = document.getElementById("saveSettings");
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Saving...";
+      }
+
+      try {
+        setApiBaseUrl(base);
+        setApiKey(elApiKey?.value ?? "");
+        setEffects(elEffectsMode?.value === "reduced" ? "reduced" : "full");
+
+        flashStatus("Настройки сохранены", elSettingsStatus, false);
+
+        if (saveBtn) {
+          saveBtn.textContent = "Saved!";
+          saveBtn.style.background = "#2e7d32";
+          saveBtn.style.color = "#fff";
+          setTimeout(() => {
+            saveBtn.textContent = "Save";
+            saveBtn.style.background = "";
+            saveBtn.style.color = "";
+          }, 2000);
+        }
+
+        if (typeof loadExistingKeys === "function" && elApiKey?.value?.trim()) {
+          await loadExistingKeys();
+        }
+      } catch (error) {
+        flashStatus("Ошибка при сохранении", elSettingsStatus, true);
+        console.error("Error saving settings:", error);
+      } finally {
+        const btn = document.getElementById("saveSettings");
+        if (btn) {
+          btn.disabled = false;
+          if (btn.textContent !== "Saved!") btn.textContent = "Save";
+        }
+      }
+    });
+    }
+
+    const elNewKeyName = document.getElementById("newKeyName");
+    const elCreateApiKey = document.getElementById("createApiKey");
+    const elRefreshKeys = document.getElementById("refreshKeys");
+    const elCreateKeyStatus = document.getElementById("createKeyStatus");
+    const elNewKeyDisplay = document.getElementById("newKeyDisplay");
+    const elNewKeyValue = document.getElementById("newKeyValue");
+    const elNewKeyId = document.getElementById("newKeyId");
+    const elNewKeyPrefix = document.getElementById("newKeyPrefix");
+    const elNewKeyLast4 = document.getElementById("newKeyLast4");
+    const elCopyNewKey = document.getElementById("copyNewKey");
+    const elUseNewKey = document.getElementById("useNewKey");
+    const elCloseNewKey = document.getElementById("closeNewKey");
+    const elExistingKeysList = document.getElementById("existingKeysList");
+    const elKeysLoading = document.getElementById("keysLoading");
+
+    document.getElementById("clearKey")?.addEventListener("click", async () => {
+      setApiKey("");
+      const keyInput = document.getElementById("apiKey");
+      if (keyInput) keyInput.value = "";
+      flashStatus("API ключ удален", elSettingsStatus, false);
+      if (elExistingKeysList) {
+        elExistingKeysList.innerHTML = '<p class="muted">Введите API ключ выше и нажмите Save.</p>';
+      }
     });
 
-    document.getElementById("clearKey")?.addEventListener("click", () => {
-      setApiKey("");
-      elApiKey.value = "";
-      flashStatus("Key cleared.");
-    });
+    async function loadExistingKeys() {
+      if (!elExistingKeysList || !elKeysLoading) return;
+
+      const apiBase = getApiBaseUrl(DEFAULT_API_BASE);
+      const currentApiKey = getApiKey();
+
+      if (!currentApiKey || !currentApiKey.trim()) {
+        elKeysLoading.style.display = "none";
+        elExistingKeysList.innerHTML = '<p class="muted">Enter an API key above and click "Save" to view your keys.</p>';
+        return;
+      }
+
+      elKeysLoading.style.display = "block";
+      elKeysLoading.textContent = "Loading...";
+      elExistingKeysList.innerHTML = "";
+
+      try {
+        const client = makeClient(apiBase);
+        const result = await client.listApiKeys(currentApiKey);
+
+        elKeysLoading.style.display = "none";
+
+        if (result.keys.length === 0) {
+          elExistingKeysList.innerHTML = '<p class="muted">No API keys found. Create your first key below.</p>';
+        } else {
+          result.keys.forEach((key) => {
+            const keyCard = document.createElement("div");
+            keyCard.style.cssText = "padding: var(--space-3); background: var(--color-bg-subtle); border-radius: var(--radius); border: 1px solid var(--color-border);";
+            keyCard.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: start; gap: var(--space-2);">
+                <div style="flex: 1;">
+                  <div style="font-weight: 500; margin-bottom: var(--space-1);">
+                    ${key.name || "Unnamed Key"} ${key.is_admin ? '<span style="color: var(--color-text-muted); font-size: 0.875rem;">(Admin)</span>' : ""}
+                  </div>
+                  <div style="font-family: monospace; font-size: 0.875rem; color: var(--color-text-muted); margin-bottom: var(--space-1);">
+                    ${key.prefix}...${key.last4}
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--color-text-muted);">
+                    Created: ${key.created_at ? new Date(key.created_at).toLocaleDateString() : "Unknown"}
+                  </div>
+                </div>
+                <div>
+                  <button class="button" data-key-id="${key.id}" data-revoke-key style="font-size: 0.875rem; padding: var(--space-1) var(--space-2);" title="Revoke this key">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            `;
+            elExistingKeysList.appendChild(keyCard);
+
+            // Add event listener for revoke button
+            const revokeBtn = keyCard.querySelector('[data-revoke-key]');
+            if (revokeBtn) {
+              revokeBtn.addEventListener("click", async () => {
+                if (!confirm(`Are you sure you want to revoke this API key?\n\n${key.name || "Unnamed Key"}\n${key.prefix}...${key.last4}\n\nThis action cannot be undone.`)) {
+                  return;
+                }
+
+                try {
+                  const client = makeClient(getApiBaseUrl(DEFAULT_API_BASE));
+                  await client.revokeApiKey(key.id, getApiKey());
+                  flashStatus("🗑️ API ключ удален", elCreateKeyStatus, false);
+                  await loadExistingKeys();
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : String(error);
+                  flashStatus(`❌ Ошибка: ${message}`, elCreateKeyStatus, true);
+                }
+              });
+            }
+          });
+        }
+      } catch (error) {
+        elKeysLoading.style.display = "none";
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("404") || message.includes("Organization not found")) {
+          elExistingKeysList.innerHTML = '<p class="muted">No organization found. Create a new API key below to get started.</p>';
+        } else if (message.includes("401") || message.includes("invalid API key")) {
+          elExistingKeysList.innerHTML = '<p class="muted" style="color: var(--color-error);">Invalid API key. Please check your key and try again.</p>';
+        } else {
+          elExistingKeysList.innerHTML = `<p class="muted" style="color: var(--color-error);">Error loading keys: ${message}</p>`;
+        }
+        console.error("Error loading API keys:", error);
+      }
+    }
+
+    // Load existing keys on page load (with delay to ensure DOM is ready)
+    setTimeout(() => {
+      loadExistingKeys();
+    }, 100);
+
+    // Also reload when API key field changes
+    if (elApiKey) {
+      elApiKey.addEventListener("input", () => {
+        clearTimeout(window._keyInputTimeout);
+        window._keyInputTimeout = setTimeout(() => {
+          if (elApiKey.value.trim()) {
+            loadExistingKeys();
+          }
+        }, 1000);
+      });
+    }
+
+    if (elCreateApiKey && elNewKeyName && elCreateKeyStatus && elNewKeyDisplay &&
+        elNewKeyValue && elNewKeyId && elNewKeyPrefix && elNewKeyLast4 &&
+        elCopyNewKey && elUseNewKey && elCloseNewKey) {
+
+      elCreateApiKey.addEventListener("click", async () => {
+        const apiBase = getApiBaseUrl(DEFAULT_API_BASE);
+        const currentApiKey = getApiKey();
+
+        // Allow creating key even without existing key (uses static key or creates org)
+        elCreateApiKey.disabled = true;
+        elCreateApiKey.textContent = "Creating...";
+        flashStatus("⏳ Создание API ключа...", elCreateKeyStatus, false);
+
+        try {
+          const client = makeClient(apiBase);
+          const keyName = elNewKeyName.value.trim() || null;
+          const result = await client.createApiKey({ key_name: keyName }, currentApiKey);
+
+          // Display the new key
+          elNewKeyValue.value = result.api_key;
+          elNewKeyId.textContent = result.api_key_id;
+          elNewKeyPrefix.textContent = result.prefix;
+          elNewKeyLast4.textContent = result.last4;
+          elNewKeyDisplay.style.display = "block";
+          elNewKeyName.value = "";
+          flashStatus("✅ API ключ создан успешно! Сохраните его сейчас - он больше не будет показан.", elCreateKeyStatus, false);
+
+          // Refresh the list
+          await loadExistingKeys();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          flashStatus(`❌ Ошибка: ${message}`, elCreateKeyStatus, true);
+        } finally {
+          elCreateApiKey.disabled = false;
+          elCreateApiKey.textContent = "Create new API key";
+        }
+      });
+
+      if (elRefreshKeys) {
+        elRefreshKeys.addEventListener("click", async () => {
+          elRefreshKeys.disabled = true;
+          elRefreshKeys.textContent = "Refreshing...";
+          await loadExistingKeys();
+          flashStatus("🔄 Список обновлен", elCreateKeyStatus, false);
+          elRefreshKeys.disabled = false;
+          elRefreshKeys.textContent = "Refresh list";
+        });
+      }
+
+      elCopyNewKey.addEventListener("click", () => {
+        if (elNewKeyValue instanceof HTMLInputElement) {
+          elNewKeyValue.select();
+          document.execCommand("copy");
+          flashStatus("📋 Скопировано в буфер обмена!", elCreateKeyStatus, false);
+        }
+      });
+
+      elUseNewKey.addEventListener("click", async () => {
+        if (elNewKeyValue instanceof HTMLInputElement) {
+          const newKey = elNewKeyValue.value.trim();
+          if (!newKey) {
+            flashStatus("❌ Нет ключа для использования", elCreateKeyStatus, true);
+            return;
+          }
+          setApiKey(newKey);
+          elApiKey.value = newKey;
+          elNewKeyDisplay.style.display = "none";
+          flashStatus("✅ API ключ сохранен в настройках", elCreateKeyStatus, false);
+          // Reload keys list with the new key
+          await loadExistingKeys();
+        }
+      });
+
+      elCloseNewKey.addEventListener("click", () => {
+        elNewKeyDisplay.style.display = "none";
+      });
+    }
+    }
   </script>
 </AppShell>

@@ -28,7 +28,12 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(r.headers.get("location"), "/docs")
 
     def test_create_audit_stubbed(self):
-        with patch("src.sec_scanner.api.enqueue_audit", return_value="test-audit-id"):
+        with (
+            patch(
+                "src.sec_scanner.api.normalize_target", return_value=("example.com", "example.com")
+            ),
+            patch("src.sec_scanner.api.enqueue_audit", return_value="test-audit-id"),
+        ):
             r = self.client.post("/api/v1/audits", json={"target": "example.com", "mode": "safe"})
         self.assertEqual(r.status_code, 200)
         data = r.json()

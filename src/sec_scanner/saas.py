@@ -165,14 +165,81 @@ def _path_requires_auth(path: str) -> bool:
     return False
 
 
+def _check_api_key_in_url(request: Request) -> str | None:
+    """
+    Security check: Detect API keys passed in URL query parameters.
+
+    API keys in URLs are a security risk because:
+    - They appear in server access logs
+    - They're visible in browser history
+    - They can leak via Referer headers
+    - They're exposed in monitoring/analytics tools
+
+    Returns error message if API key detected, None otherwise.
+    """
+    query = request.url.query or ""
+    if not query:
+        return None
+
+    query_lower = query.lower()
+
+    # Common API key parameter names to block
+    dangerous_params = (
+        "api_key=",
+        "apikey=",
+        "api-key=",
+        "key=",
+        "token=",
+        "access_token=",
+        "auth_token=",
+        "secret=",
+        "x-api-key=",
+    )
+
+    for param in dangerous_params:
+        if param in query_lower:
+            # Additional check: ensure it's a parameter (not part of a value)
+            # e.g., "redirect_url=https://example.com?key=123" should not trigger
+            # but "key=sk_xxx" should
+            import re
+
+            # Match parameter at start or after &
+            pattern = rf"(^|&){re.escape(param[:-1])}="
+            if re.search(pattern, query_lower):
+                return (
+                    f"API keys must not be passed in URL query parameters. "
+                    f"Use the X-API-Key header or Authorization: Bearer <key> instead. "
+                    f"Detected parameter: {param[:-1]}"
+                )
+
+    return None
+
+
 async def saas_http_middleware(request: Request, call_next):
     """
-    - Optional API key auth for /api/v1/*, /stripe/*, /payments/* (except webhook paths).
-    - If key present: validate, attach tenant context, enforce rpm, record request usage.
-    - If key missing:
-        - allow (default) OR reject if SEC_SCANNER_REQUIRE_API_KEY=true
+    SaaS authentication and rate limiting middleware.
+
+    Features:
+    - Rejects API keys in URL query parameters (security)
+    - Optional API key auth for /api/v1/*, /stripe/*, /payments/* (except webhooks)
+    - If key present: validate, attach tenant context, enforce rpm, record usage
+    - If key missing: allow (default) OR reject if SEC_SCANNER_REQUIRE_API_KEY=true
     """
     path = request.url.path or ""
+
+    # Security: Reject API keys in URL parameters
+    # This applies to ALL paths, not just protected ones
+    url_key_error = _check_api_key_in_url(request)
+    if url_key_error:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "detail": url_key_error,
+                "error_code": "API_KEY_IN_URL",
+                "hint": "Pass your API key in the X-API-Key header",
+            },
+        )
+
     if not _path_requires_auth(path):
         return await call_next(request)
 
@@ -198,7 +265,10 @@ async def saas_http_middleware(request: Request, call_next):
         try:
             await enforce_rpm_or_raise(auth.api_key_id, auth.requests_per_minute)
         except HTTPException as e:
-            return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+            resp = JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+            if e.status_code == 429:
+                resp.headers["Retry-After"] = "60"
+            return resp
 
     # Record monthly request usage (best-effort)
     try:
