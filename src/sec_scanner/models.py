@@ -205,3 +205,42 @@ class AuditLog(Base):
     request_id = Column(String, nullable=True, index=True)  # Correlation ID from X-Request-ID
     request_path = Column(String, nullable=True)  # API endpoint path
     request_method = Column(String, nullable=True)  # HTTP method
+
+
+class Payment(Base):
+    """
+    Payment records for idempotency tracking.
+
+    Stores information about processed payments from payment providers (YooKassa, Stripe)
+    to prevent duplicate processing of webhook events.
+    """
+
+    __tablename__ = "payments"
+    __table_args__ = (UniqueConstraint("provider", "payment_id", name="uq_payment_provider_id"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Payment provider info
+    provider = Column(String, nullable=False, index=True)  # "yookassa", "stripe"
+    payment_id = Column(String, nullable=False, index=True)  # Payment ID from provider
+
+    # Organization context
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+
+    # Payment details
+    plan_code = Column(String, nullable=True)  # Plan code if subscription payment
+    amount = Column(Float, nullable=True)  # Payment amount
+    currency = Column(String, nullable=True, default="RUB")  # Currency code
+
+    # Status
+    status = Column(
+        String, nullable=False, index=True
+    )  # "succeeded", "canceled", "failed", "pending"
+    event_type = Column(String, nullable=False)  # Webhook event type (e.g., "payment.succeeded")
+
+    # Metadata from payment provider (renamed from 'metadata' to avoid SQLAlchemy reserved name)
+    payment_metadata = Column(JSON, nullable=True)  # Additional payment metadata
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    processed_at = Column(DateTime(timezone=True), nullable=True)  # When webhook was processed

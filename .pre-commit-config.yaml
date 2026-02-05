@@ -51,7 +51,7 @@ repos:
           - -c
           - |
             if command -v bandit &> /dev/null; then
-              bandit -ll -r src/ --exclude backup_ai_drafts/ || exit 1
+              bandit -ll -r src/ -c pyproject.toml --exclude backup_ai_drafts/ || exit 1
             else
               echo "⚠️ Bandit not found. Install with: pip install bandit"
               echo "   Skipping bandit check..."

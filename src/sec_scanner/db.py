@@ -14,6 +14,7 @@ from .models import (
     Base,
     NotificationSettings,
     Organization,
+    Payment,
     Plan,
     ScanProgress,
     UsageBucket,
@@ -918,3 +919,124 @@ def get_audit_logs(
             }
             for log in logs
         ], total
+
+
+def get_payment_by_provider_id(provider: str, payment_id: str) -> dict[str, Any] | None:
+    """
+    Get payment record by provider and payment ID (for idempotency check).
+
+    Args:
+        provider: Payment provider name ("yookassa", "stripe")
+        payment_id: Payment ID from provider
+
+    Returns:
+        Payment record dict or None if not found
+    """
+    with get_session() as s:
+        payment = s.scalar(
+            select(Payment).where(Payment.provider == provider, Payment.payment_id == payment_id)
+        )
+        if not payment:
+            return None
+        return {
+            "id": payment.id,
+            "provider": payment.provider,
+            "payment_id": payment.payment_id,
+            "org_id": payment.org_id,
+            "plan_code": payment.plan_code,
+            "amount": payment.amount,
+            "currency": payment.currency,
+            "status": payment.status,
+            "event_type": payment.event_type,
+            "payment_metadata": payment.payment_metadata,
+            "created_at": payment.created_at.isoformat() if payment.created_at else None,
+            "processed_at": payment.processed_at.isoformat() if payment.processed_at else None,
+        }
+
+
+def create_payment_record(
+    provider: str,
+    payment_id: str,
+    org_id: int,
+    *,
+    plan_code: str | None = None,
+    amount: float | None = None,
+    currency: str = "RUB",
+    status: str = "pending",
+    event_type: str = "payment.created",
+    payment_metadata: dict[str, Any] | None = None,
+) -> int:
+    """
+    Create a payment record for idempotency tracking.
+
+    Args:
+        provider: Payment provider name ("yookassa", "stripe")
+        payment_id: Payment ID from provider
+        org_id: Organization ID
+        plan_code: Plan code if subscription payment
+        amount: Payment amount
+        currency: Currency code (default: "RUB")
+        status: Payment status (default: "pending")
+        event_type: Webhook event type
+        payment_metadata: Additional payment metadata
+
+    Returns:
+        The ID of the created payment record
+    """
+    with get_session() as s:
+        payment = Payment(
+            provider=provider,
+            payment_id=payment_id,
+            org_id=org_id,
+            plan_code=plan_code,
+            amount=amount,
+            currency=currency,
+            status=status,
+            event_type=event_type,
+            payment_metadata=payment_metadata,
+            processed_at=datetime.now(UTC),
+        )
+        s.add(payment)
+        s.commit()
+        s.refresh(payment)
+        return payment.id
+
+
+def update_payment_status(
+    provider: str,
+    payment_id: str,
+    status: str,
+    *,
+    event_type: str | None = None,
+    payment_metadata: dict[str, Any] | None = None,
+) -> bool:
+    """
+    Update payment status (for webhook processing).
+
+    Args:
+        provider: Payment provider name
+        payment_id: Payment ID from provider
+        status: New status
+        event_type: Optional event type
+        payment_metadata: Optional metadata to update
+
+    Returns:
+        True if updated, False if payment not found
+    """
+    with get_session() as s:
+        payment = s.scalar(
+            select(Payment).where(Payment.provider == provider, Payment.payment_id == payment_id)
+        )
+        if not payment:
+            return False
+        payment.status = status
+        payment.processed_at = datetime.now(UTC)
+        if event_type:
+            payment.event_type = event_type
+        if payment_metadata:
+            if payment.payment_metadata:
+                payment.payment_metadata.update(payment_metadata)
+            else:
+                payment.payment_metadata = payment_metadata
+        s.commit()
+        return True
