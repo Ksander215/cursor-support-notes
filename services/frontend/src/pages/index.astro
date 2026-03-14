@@ -6,85 +6,84 @@ const pricingPlans = [
   {
     code: "free",
     name: "Free",
-    price: "$0",
-    period: "month",
-    description: "Perfect for trying out sec-scanner.pro",
+    price: "0₽",
+    period: "месяц",
+    description: "Попробуйте сканер бесплатно",
     features: [
-      "10 scans per month",
-      "Safe mode only",
-      "Basic reports (Markdown)",
-      "30 days history",
-      "Community support",
+      "10 сканов в месяц",
+      "Режим safe",
+      "Базовые отчёты (Markdown)",
+      "История 30 дней",
+      "Поддержка сообщества",
     ],
-    cta: "Get Started",
+    cta: "Начать бесплатно",
     ctaHref: "/app/dashboard",
   },
   {
     code: "starter",
     name: "Starter",
-    price: "$29",
-    period: "month",
-    description: "For small teams and startups",
+    price: "2 900₽",
+    period: "месяц",
+    description: "Для небольших команд и стартапов",
     features: [
-      "100 scans per month",
-      "All scan modes (safe, normal, full)",
-      "All report formats (PDF, JSON, Markdown)",
-      "90 days history",
-      "CI/CD integrations",
-      "Email notifications",
-      "API access (1,000 requests/month)",
-      "Priority support",
+      "100 сканов в месяц",
+      "Все режимы: safe, normal, full",
+      "PDF, JSON и Markdown отчёты",
+      "История 90 дней",
+      "CI/CD интеграции",
+      "Email-уведомления",
+      "API-доступ (1 000 запросов/мес.)",
+      "Приоритетная поддержка",
     ],
-    cta: "Start Free Trial",
-    ctaHref: "/app/dashboard",
+    cta: "Попробовать 7 дней",
+    ctaHref: "/checkout?plan=starter",
     popular: true,
-    badge: "Popular",
+    badge: "Популярный",
   },
   {
     code: "professional",
-    name: "Professional",
-    price: "$99",
-    period: "month",
-    description: "For growing teams and businesses",
+    name: "Pro",
+    price: "9 900₽",
+    period: "месяц",
+    description: "Для растущих команд и компаний",
     features: [
-      "500 scans per month",
-      "All scan modes + advanced checks",
-      "Dependency Scanning",
-      "Nmap integration",
-      "1 year history",
-      "All integrations (Slack, Telegram, Webhooks)",
-      "API access (10,000 requests/month)",
-      "Priority support (email + chat)",
-      "Custom webhooks",
+      "500 сканов в месяц",
+      "Все режимы + расширенные проверки",
+      "Сканирование зависимостей",
+      "Интеграция Nmap",
+      "История 1 год",
+      "Slack, Telegram, Webhook-уведомления",
+      "API-доступ (10 000 запросов/мес.)",
+      "Приоритетная поддержка (email + чат)",
+      "Пользовательские вебхуки",
     ],
-    cta: "Start Free Trial",
-    ctaHref: "/app/dashboard",
+    cta: "Попробовать 7 дней",
+    ctaHref: "/checkout?plan=professional",
   },
   {
     code: "enterprise",
     name: "Enterprise",
-    price: "Custom",
+    price: "По запросу",
     period: "",
-    description: "For large organizations",
+    description: "Для крупных организаций",
     features: [
-      "Unlimited scans",
-      "All features + extended capabilities",
-      "OWASP ZAP integration",
-      "SAST analysis (up to 10 repos)",
-      "Dedicated infrastructure (optional)",
-      "On-premise deployment (optional)",
-      "SLA guarantees",
-      "24/7 priority support",
-      "Custom integrations",
-      "White-label reports",
-      "Dedicated account manager",
+      "Неограниченное число сканов",
+      "Все возможности + расширения",
+      "Интеграция OWASP ZAP",
+      "SAST-анализ (до 10 репозиториев)",
+      "Собственная инфраструктура (опционально)",
+      "On-premise развёртывание",
+      "SLA-гарантии",
+      "Поддержка 24/7",
+      "White-label отчёты",
+      "Выделенный менеджер",
     ],
-    cta: "Contact Sales",
+    cta: "Связаться с нами",
     ctaHref: "mailto:sales@sec-scanner.pro",
   },
 ];
 ---
-<Base title="sec-scanner.pro" description="Unified security scanning interface">
+<Base title="sec-scanner.pro — Сканер безопасности API" description="Автоматическая проверка безопасности API, SSL, HTTP-заголовков и уязвимостей. Скачайте бесплатный чеклист или запустите первый скан прямо сейчас.">
   <header class="container site-header">
     <nav class="nav">
       <a href="/" class="brand">
@@ -94,68 +93,249 @@ const pricingPlans = [
         <span class="brand-name truncate">sec-scanner.pro</span>
       </a>
       <div class="nav-actions">
-        <a class="btn" href="/app/dashboard">Dashboard</a>
-        <a class="btn btn-primary" href="https://api.sec-scanner.pro/web-check/" target="_blank" rel="noreferrer">
-          Web-Check
-        </a>
+        <a class="btn" href="/app/dashboard">Войти</a>
+        <a class="btn btn-primary" href="/free-checklist">Скачать чеклист</a>
       </div>
     </nav>
   </header>
 
   <main class="container fade-in main">
+
+    <!-- HERO -->
     <section class="panel hero">
       <div class="hero-copy">
-        <p class="muted" style="margin:0 0 var(--space-2);">
-          Unified interface for audits, reports, and operational workflows
-        </p>
+        <p class="badge-label">Инструмент для разработчиков и DevOps</p>
         <h1 class="h1">
-          Enterprise Security Scanner Platform.
-          <span class="muted">Fast, safe, and production‑oriented.</span>
+          Проверьте безопасность вашего API
+          <span class="muted">за&nbsp;5&nbsp;минут, не выходя из браузера.</span>
         </h1>
-        <p class="muted" style="margin: var(--space-4) 0 0;">
-          This UI is the new home for product navigation and dashboards. Web-Check remains available under
-          <span class="kbd">/web-check/</span> on the API domain.
+        <p class="muted hero-sub">
+          SSL, HTTP-заголовки, порты, OWASP Top‑10 — автоматически.
+          Результат в виде читаемого отчёта с рекомендациями.
         </p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="/app/dashboard">Open Dashboard</a>
-          <a class="btn" href="https://api.sec-scanner.pro/docs" target="_blank" rel="noreferrer">API Docs</a>
+          <a class="btn btn-primary btn-lg" href="/free-checklist">
+            Скачать чеклист бесплатно
+          </a>
+          <a class="btn btn-lg" href="/free-scan">
+            Проверить API →
+          </a>
+        </div>
+        <p class="muted hint">Бесплатный скан — без регистрации, 1 проверка в день</p>
+      </div>
+    </section>
+
+    <!-- BENEFITS -->
+    <section class="grid-12 benefits-section">
+      <div class="panel col-4 benefit-card">
+        <div class="benefit-icon">🔒</div>
+        <h3 class="h3">SSL и TLS</h3>
+        <p class="muted">Версия протокола, срок действия сертификата, слабые шифры — полный анализ за секунды.</p>
+      </div>
+      <div class="panel col-4 benefit-card">
+        <div class="benefit-icon">🛡️</div>
+        <h3 class="h3">HTTP-заголовки</h3>
+        <p class="muted">HSTS, CSP, X-Frame-Options, CORS — проверяем наличие и корректность всех security-заголовков.</p>
+      </div>
+      <div class="panel col-4 benefit-card">
+        <div class="benefit-icon">🔍</div>
+        <h3 class="h3">OWASP Top-10</h3>
+        <p class="muted">Автоматическое обнаружение уязвимостей из топ-10 OWASP с подробными описаниями и примерами исправлений.</p>
+      </div>
+      <div class="panel col-4 benefit-card">
+        <div class="benefit-icon">⚡</div>
+        <h3 class="h3">CI/CD интеграция</h3>
+        <p class="muted">Готовые шаблоны для GitHub Actions, GitLab CI, Jenkins. Добавьте проверку в пайплайн за 5 минут.</p>
+      </div>
+      <div class="panel col-4 benefit-card">
+        <div class="benefit-icon">📊</div>
+        <h3 class="h3">Удобные отчёты</h3>
+        <p class="muted">PDF, JSON и Markdown — выбирайте формат для своей команды. История сканов и трендовые графики.</p>
+      </div>
+      <div class="panel col-4 benefit-card">
+        <div class="benefit-icon">🔔</div>
+        <h3 class="h3">Уведомления</h3>
+        <p class="muted">Получайте алерты в Telegram, Slack или email сразу после обнаружения критических уязвимостей.</p>
+      </div>
+    </section>
+
+    <!-- SOCIAL PROOF (заглушка) -->
+    <section class="panel social-proof">
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-number">500+</span>
+          <span class="stat-label">сканов выполнено</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">3 200+</span>
+          <span class="stat-label">уязвимостей найдено</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">&lt;5 мин</span>
+          <span class="stat-label">среднее время скана</span>
         </div>
       </div>
     </section>
 
-    <section class="grid-12">
-      <div class="panel col-6 section">
-        <h2 class="h2">Design system first</h2>
-        <p class="muted" style="margin: var(--space-2) 0 0;">
-          First iteration focuses on crisp layout, typography, tokens, and components. 3D / cinematic transitions come next.
-        </p>
+    <!-- LEAD MAGNET CTA -->
+    <section class="panel lead-magnet-cta">
+      <div class="lm-content">
+        <h2 class="h2">Бесплатный чеклист: 10 проверок безопасности API</h2>
+        <p class="muted">Скачайте PDF-гайд «Безопасность API за 2 часа» — конкретные шаги, которые закроют самые частые уязвимости прямо сейчас.</p>
+        <div class="lm-actions">
+          <a class="btn btn-primary btn-lg" href="/free-checklist">Скачать бесплатно</a>
+          <a class="btn btn-lg" href="/course">Курс «API Security» — 1 500₽</a>
+        </div>
       </div>
-      <div class="panel col-6 section">
-        <h2 class="h2">Secure by default</h2>
-        <p class="muted" style="margin: var(--space-2) 0 0;">
-          API key support, SSRF guards, strict method limits, and minimal CORS.
-        </p>
-      </div>
-      <div class="panel col-12 section">
-        <h2 class="h2">Next</h2>
-        <p class="muted" style="margin: var(--space-2) 0 0;">
-          Add a proper dashboard: audit queue status, trends, risk distribution, and tenant-scoped access.
-        </p>
-      </div>
+      <div class="lm-badge">📋</div>
     </section>
 
+    <!-- PRICING -->
     <section id="pricing" class="pricing-section" aria-labelledby="pricing-heading">
-      <h2 id="pricing-heading" class="pricing-header h2">Plans &amp; Pricing</h2>
+      <h2 id="pricing-heading" class="pricing-header h2">Тарифы и цены</h2>
       <div class="pricing-grid">
         {pricingPlans.map((plan) => (
           <PricingCard plan={plan} />
         ))}
       </div>
     </section>
+
+    <!-- SECONDARY CTA -->
+    <section class="panel secondary-cta">
+      <p class="muted">Нужны CI/CD шаблоны уже сейчас?</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/templates">CI/CD шаблоны — 2 000₽</a>
+        <a class="btn" href="/free-scan">Бесплатный скан API</a>
+      </div>
+    </section>
+
   </main>
+
+  <footer class="container site-footer">
+    <p class="muted">© 2026 sec-scanner.pro &mdash;
+      <a href="mailto:hello@sec-scanner.pro">hello@sec-scanner.pro</a>
+    </p>
+  </footer>
 </Base>
 
 <style>
+  /* ── Hero ─────────────────────────────────────────── */
+  .badge-label {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: var(--accent, #0ea5e9);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: var(--space-3);
+  }
+
+  .hero-sub {
+    margin: var(--space-4) 0 0;
+    font-size: 1.1rem;
+    max-width: 52ch;
+  }
+
+  .hint {
+    margin-top: var(--space-2);
+    font-size: 0.85rem;
+  }
+
+  .btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  /* ── Benefits ─────────────────────────────────────── */
+  .benefits-section {
+    margin: var(--space-7) 0;
+  }
+
+  .benefit-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .benefit-icon {
+    font-size: 2rem;
+  }
+
+  /* ── Social proof ─────────────────────────────────── */
+  .social-proof {
+    margin: var(--space-5) 0;
+    padding: var(--space-5);
+  }
+
+  .stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+    justify-content: center;
+    text-align: center;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .stat-number {
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+    color: var(--muted, #6b7280);
+  }
+
+  /* ── Lead-magnet CTA block ────────────────────────── */
+  .lead-magnet-cta {
+    margin: var(--space-7) 0;
+    padding: var(--space-6);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+  }
+
+  .lm-content {
+    flex: 1;
+  }
+
+  .lm-content h2 {
+    margin-bottom: var(--space-2);
+  }
+
+  .lm-content .muted {
+    margin-bottom: var(--space-4);
+    max-width: 55ch;
+  }
+
+  .lm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .lm-badge {
+    font-size: 5rem;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  @media (max-width: 640px) {
+    .lm-badge { display: none; }
+    .lead-magnet-cta { flex-direction: column; }
+  }
+
+  /* ── Pricing ──────────────────────────────────────── */
   .pricing-section {
     margin: var(--space-7) 0;
     padding: var(--space-7) 0;
@@ -175,14 +355,37 @@ const pricingPlans = [
   }
 
   @media (min-width: 768px) {
-    .pricing-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
+    .pricing-grid { grid-template-columns: repeat(2, 1fr); }
   }
 
   @media (min-width: 1024px) {
-    .pricing-grid {
-      grid-template-columns: repeat(4, 1fr);
-    }
+    .pricing-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  /* ── Secondary CTA ────────────────────────────────── */
+  .secondary-cta {
+    text-align: center;
+    padding: var(--space-5);
+    margin: var(--space-5) 0 var(--space-7);
+  }
+
+  .secondary-cta .muted {
+    margin-bottom: var(--space-3);
+  }
+
+  .secondary-cta .cta-row {
+    justify-content: center;
+  }
+
+  /* ── Footer ───────────────────────────────────────── */
+  .site-footer {
+    padding: var(--space-5) 0;
+    border-top: 1px solid var(--border, #e5e7eb);
+    text-align: center;
+  }
+
+  .site-footer a {
+    color: inherit;
+    text-decoration: underline;
   }
 </style>

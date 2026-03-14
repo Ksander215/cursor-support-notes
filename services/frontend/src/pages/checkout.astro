@@ -1,0 +1,743 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base
+  title="Оформление подписки | sec-scanner.pro"
+  description="Оформите подписку на sec-scanner.pro. Первые 7 дней бесплатно."
+>
+  <header class="container site-header">
+    <nav class="nav">
+      <a href="/" class="brand">
+        <span class="panel brand-icon" aria-hidden="true">
+          <span class="brand-dot"></span>
+        </span>
+        <span class="brand-name truncate">sec-scanner.pro</span>
+      </a>
+      <div class="nav-actions">
+        <a class="btn" href="/#pricing">Тарифы</a>
+        <a class="btn" href="/app/dashboard">Войти</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="container fade-in main">
+
+    <!-- Success state -->
+    <div id="success-state" class="panel state-panel" hidden>
+      <div class="state-icon">🎉</div>
+      <h1 class="h2">Подписка активирована!</h1>
+      <p class="muted">Ваш план успешно активирован. Войдите в dashboard, чтобы начать работу.</p>
+      <div class="state-actions">
+        <a class="btn btn-primary btn-lg" href="/app/dashboard">Перейти в Dashboard →</a>
+        <a class="btn btn-lg" href="/free-scan">Запустить первый скан</a>
+      </div>
+    </div>
+
+    <!-- Canceled state -->
+    <div id="canceled-state" class="panel state-panel" hidden>
+      <div class="state-icon">⚠️</div>
+      <h1 class="h2">Оплата отменена</h1>
+      <p class="muted">Ничего страшного — ваш API-ключ сохранён. Можете попробовать снова.</p>
+      <div class="state-actions">
+        <button class="btn btn-primary btn-lg" id="retry-btn">Попробовать ещё раз</button>
+        <a class="btn btn-lg" href="/#pricing">Другие тарифы</a>
+      </div>
+    </div>
+
+    <!-- Main checkout flow -->
+    <div id="checkout-flow">
+
+      <!-- Plan not found -->
+      <div id="plan-not-found" class="panel state-panel" hidden>
+        <div class="state-icon">❓</div>
+        <h1 class="h2">Тариф не найден</h1>
+        <p class="muted">Пожалуйста, выберите тариф на главной странице.</p>
+        <a class="btn btn-primary btn-lg" href="/#pricing">Выбрать тариф</a>
+      </div>
+
+      <!-- Checkout form -->
+      <div id="checkout-content" hidden>
+        <div class="checkout-layout">
+
+          <!-- Order summary -->
+          <div class="order-summary">
+            <div class="panel order-card">
+              <div class="order-header">
+                <span class="order-badge">Подписка</span>
+                <h2 class="h2 order-plan-name" id="plan-name-display"></h2>
+                <div class="order-price">
+                  <span class="price-amount" id="plan-price-display"></span>
+                  <span class="price-period">/<span id="plan-period-display"></span></span>
+                </div>
+                <p class="muted order-desc" id="plan-desc-display"></p>
+              </div>
+              <div class="trial-notice">
+                <span class="trial-icon">🎁</span>
+                <span>Первые <strong id="trial-days-display"></strong> дней — <strong>бесплатно</strong></span>
+              </div>
+              <ul class="order-features" id="plan-features-list"></ul>
+              <div class="order-footer">
+                <a href="/#pricing" class="change-plan">← Изменить тариф</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Checkout form -->
+          <div class="checkout-form-wrap">
+            <div class="panel form-card">
+
+              <!-- Step 1: Email -->
+              <div id="step-email" class="checkout-step">
+                <h1 class="h2 step-title">Оформление подписки</h1>
+                <p class="muted step-desc">Введите email — создадим аккаунт и перенаправим на оплату.</p>
+
+                <form id="email-form" novalidate>
+                  <div class="form-group">
+                    <label for="checkout-email" class="form-label">Email <span class="req">*</span></label>
+                    <input
+                      id="checkout-email"
+                      name="email"
+                      type="email"
+                      class="form-input"
+                      placeholder="you@company.com"
+                      required
+                      autocomplete="email"
+                    />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="checkout-name" class="form-label">
+                      Имя <span class="opt">(опционально)</span>
+                    </label>
+                    <input
+                      id="checkout-name"
+                      name="name"
+                      type="text"
+                      class="form-input"
+                      placeholder="Иван Петров"
+                      autocomplete="name"
+                    />
+                  </div>
+
+                  <div id="email-error" class="form-error" hidden></div>
+
+                  <button type="submit" class="btn btn-primary btn-lg submit-btn" id="email-submit-btn">
+                    Перейти к оплате →
+                  </button>
+                </form>
+
+                <div class="already-have-key">
+                  <p class="muted">Уже есть API-ключ?</p>
+                  <button class="btn btn-sm" id="use-existing-key-btn">Использовать существующий ключ</button>
+                </div>
+
+                <ul class="security-badges">
+                  <li>🔒 Платёж через YooKassa</li>
+                  <li>🛡️ Данные карты не хранятся</li>
+                  <li>↩️ Отмена в любое время</li>
+                </ul>
+              </div>
+
+              <!-- Step 2: Creating account -->
+              <div id="step-creating" class="checkout-step" hidden>
+                <div class="spinner-wrap">
+                  <div class="spinner"></div>
+                </div>
+                <h2 class="h3">Создаём аккаунт…</h2>
+                <p class="muted">Пожалуйста, подождите несколько секунд.</p>
+              </div>
+
+              <!-- Step 3: Redirecting to payment -->
+              <div id="step-redirecting" class="checkout-step" hidden>
+                <div class="spinner-wrap">
+                  <div class="spinner"></div>
+                </div>
+                <h2 class="h3">Перенаправляем на оплату…</h2>
+                <p class="muted">Вы будете перенаправлены на страницу оплаты YooKassa.</p>
+              </div>
+
+              <!-- Step: Use existing key -->
+              <div id="step-existing-key" class="checkout-step" hidden>
+                <h2 class="h3 step-title">Ввести API-ключ</h2>
+                <p class="muted step-desc">Вставьте API-ключ из настроек вашего аккаунта.</p>
+
+                <div class="form-group">
+                  <label for="existing-key-input" class="form-label">API-ключ</label>
+                  <input
+                    id="existing-key-input"
+                    type="password"
+                    class="form-input"
+                    placeholder="ssc_..."
+                    autocomplete="off"
+                  />
+                </div>
+
+                <div id="existing-key-error" class="form-error" hidden></div>
+
+                <div class="btn-row">
+                  <button class="btn btn-primary btn-lg" id="existing-key-submit-btn">
+                    Оформить подписку →
+                  </button>
+                  <button class="btn" id="back-to-email-btn">← Назад</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="container site-footer">
+    <p class="muted">© 2026 sec-scanner.pro &mdash;
+      <a href="mailto:hello@sec-scanner.pro">hello@sec-scanner.pro</a>
+    </p>
+  </footer>
+</Base>
+
+<script>
+  const API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "https://api.sec-scanner.pro").replace(/\/+$/, "");
+  const LS_KEY = "sec_scanner_api_key";
+  const LS_BASE_KEY = "sec_scanner_api_base_url";
+
+  function getStoredApiKey(): string | null {
+    try { return localStorage.getItem(LS_KEY) || null; } catch { return null; }
+  }
+  function storeApiKey(key: string) {
+    try {
+      localStorage.setItem(LS_KEY, key);
+      localStorage.setItem(LS_BASE_KEY, API_BASE);
+    } catch {}
+  }
+
+  const PLANS: Record<string, {name: string; price: string; period: string; description: string; features: string[]; trialDays: number}> = {
+    starter: {
+      name: "Starter",
+      price: "2 900₽",
+      period: "месяц",
+      description: "Для небольших команд и стартапов",
+      features: [
+        "100 сканов в месяц",
+        "Все режимы: safe, normal, full",
+        "PDF, JSON и Markdown отчёты",
+        "История 90 дней",
+        "CI/CD интеграции",
+        "Email-уведомления",
+        "API-доступ (1 000 запросов/мес.)",
+        "Приоритетная поддержка",
+      ],
+      trialDays: 7,
+    },
+    professional: {
+      name: "Pro",
+      price: "9 900₽",
+      period: "месяц",
+      description: "Для растущих команд и компаний",
+      features: [
+        "500 сканов в месяц",
+        "Все режимы + расширенные проверки",
+        "Сканирование зависимостей",
+        "Интеграция Nmap",
+        "История 1 год",
+        "Slack, Telegram, Webhook-уведомления",
+        "API-доступ (10 000 запросов/мес.)",
+        "Приоритетная поддержка (email + чат)",
+        "Пользовательские вебхуки",
+      ],
+      trialDays: 7,
+    },
+  };
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const planCode = urlParams.get("plan") || "";
+  const plan = PLANS[planCode];
+
+  // Handle return from payment provider
+  if (urlParams.get("success") === "true") {
+    document.getElementById("checkout-flow")!.hidden = true;
+    document.getElementById("success-state")!.removeAttribute("hidden");
+    window.history.replaceState({}, "", window.location.pathname + (planCode ? `?plan=${planCode}` : ""));
+  } else if (urlParams.get("canceled") === "true") {
+    document.getElementById("checkout-flow")!.hidden = true;
+    document.getElementById("canceled-state")!.removeAttribute("hidden");
+
+    document.getElementById("retry-btn")?.addEventListener("click", () => {
+      document.getElementById("canceled-state")!.hidden = true;
+      document.getElementById("checkout-flow")!.removeAttribute("hidden");
+      window.history.replaceState({}, "", window.location.pathname + (planCode ? `?plan=${planCode}` : ""));
+    });
+  } else if (!plan) {
+    document.getElementById("plan-not-found")!.removeAttribute("hidden");
+  } else {
+    // Show checkout content and fill in plan info
+    document.getElementById("checkout-content")!.removeAttribute("hidden");
+
+    const setText = (id: string, text: string) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    };
+
+    setText("plan-name-display", plan.name);
+    setText("plan-price-display", plan.price);
+    setText("plan-period-display", plan.period);
+    setText("plan-desc-display", plan.description);
+    setText("trial-days-display", String(plan.trialDays));
+
+    const featuresList = document.getElementById("plan-features-list");
+    if (featuresList) {
+      featuresList.innerHTML = plan.features.map(f =>
+        `<li class="feature-item"><span class="check" aria-hidden="true">✓</span><span>${f}</span></li>`
+      ).join("");
+    }
+
+    // Step management
+    function showStep(id: string) {
+      ["step-email", "step-creating", "step-redirecting", "step-existing-key"].forEach(step => {
+        const el = document.getElementById(step);
+        if (el) el.hidden = step !== id;
+      });
+    }
+
+    // "Use existing key" toggle
+    document.getElementById("use-existing-key-btn")?.addEventListener("click", () => showStep("step-existing-key"));
+    document.getElementById("back-to-email-btn")?.addEventListener("click", () => showStep("step-email"));
+
+    async function doCheckout(apiKey: string) {
+      showStep("step-redirecting");
+      const origin = window.location.origin;
+      const basePath = window.location.pathname;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/payments/checkout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": apiKey,
+          },
+          body: JSON.stringify({
+            plan_code: planCode,
+            success_url: `${origin}${basePath}?plan=${planCode}&success=true`,
+            cancel_url: `${origin}${basePath}?plan=${planCode}&canceled=true`,
+            country_code: "RU",
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || `Ошибка сервера: ${res.status}`);
+        }
+
+        const data = await res.json();
+        window.location.href = data.url;
+      } catch (err: any) {
+        showStep("step-email");
+        const errEl = document.getElementById("email-error")!;
+        errEl.textContent = `❌ ${err.message || "Не удалось создать сессию оплаты. Попробуйте снова."}`;
+        errEl.removeAttribute("hidden");
+        const btn = document.getElementById("email-submit-btn") as HTMLButtonElement;
+        btn.disabled = false;
+        btn.textContent = "Перейти к оплате →";
+      }
+    }
+
+    async function createKeyAndCheckout(email: string, name: string) {
+      showStep("step-creating");
+
+      let apiKey = getStoredApiKey();
+
+      if (!apiKey) {
+        try {
+          const res = await fetch(`${API_BASE}/api/v1/api-keys`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key_name: name ? `${name}'s Key` : "My Key" }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || `Ошибка создания аккаунта: ${res.status}`);
+          }
+
+          const data = await res.json();
+          apiKey = data.api_key;
+          storeApiKey(apiKey as string);
+        } catch (err: any) {
+          showStep("step-email");
+          const errEl = document.getElementById("email-error")!;
+          errEl.textContent = `❌ ${err.message || "Не удалось создать аккаунт. Попробуйте снова."}`;
+          errEl.removeAttribute("hidden");
+          const btn = document.getElementById("email-submit-btn") as HTMLButtonElement;
+          btn.disabled = false;
+          btn.textContent = "Перейти к оплате →";
+          return;
+        }
+      }
+
+      await doCheckout(apiKey as string);
+    }
+
+    // Email form submission
+    const emailForm = document.getElementById("email-form") as HTMLFormElement;
+    emailForm?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById("email-error")!;
+      errEl.hidden = true;
+
+      const email = (document.getElementById("checkout-email") as HTMLInputElement).value.trim();
+      const name = (document.getElementById("checkout-name") as HTMLInputElement).value.trim();
+
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errEl.textContent = "Пожалуйста, укажите корректный email.";
+        errEl.removeAttribute("hidden");
+        return;
+      }
+
+      const btn = document.getElementById("email-submit-btn") as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = "Создаём аккаунт…";
+
+      await createKeyAndCheckout(email, name);
+    });
+
+    // Existing key form submission
+    document.getElementById("existing-key-submit-btn")?.addEventListener("click", async () => {
+      const keyInput = document.getElementById("existing-key-input") as HTMLInputElement;
+      const errEl = document.getElementById("existing-key-error")!;
+      errEl.hidden = true;
+
+      const key = keyInput.value.trim();
+      if (!key) {
+        errEl.textContent = "Введите API-ключ.";
+        errEl.removeAttribute("hidden");
+        return;
+      }
+
+      const btn = document.getElementById("existing-key-submit-btn") as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = "Проверяем ключ…";
+
+      storeApiKey(key);
+      await doCheckout(key);
+
+      btn.disabled = false;
+      btn.textContent = "Оформить подписку →";
+    });
+  }
+</script>
+
+<style>
+  .main {
+    min-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  /* ── State panels (success / canceled / not-found) ── */
+  .state-panel {
+    max-width: 520px;
+    margin: var(--space-8) auto;
+    text-align: center;
+    padding: var(--space-7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .state-icon {
+    font-size: 4rem;
+  }
+
+  .state-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    justify-content: center;
+    margin-top: var(--space-2);
+  }
+
+  /* ── Checkout layout ── */
+  .checkout-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-6);
+    margin: var(--space-6) 0 var(--space-8);
+    align-items: start;
+  }
+
+  @media (max-width: 768px) {
+    .checkout-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ── Order summary ── */
+  .order-card {
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    position: sticky;
+    top: var(--space-5);
+  }
+
+  .order-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .order-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    background: var(--color-primary, #0ea5e9);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    width: fit-content;
+  }
+
+  .order-plan-name {
+    font-size: 2rem;
+    margin: 0;
+  }
+
+  .order-price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+  }
+
+  .price-amount {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: var(--text-1);
+  }
+
+  .price-period {
+    font-size: 1rem;
+    color: var(--text-2);
+  }
+
+  .order-desc {
+    font-size: 0.9rem;
+  }
+
+  .trial-notice {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-ok-bg, rgba(34, 197, 94, 0.1));
+    border: 1px solid var(--color-ok, #22c55e);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    color: var(--color-ok-text, #15803d);
+  }
+
+  .trial-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+
+  .order-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    font-size: 0.875rem;
+    color: var(--text-1);
+  }
+
+  .check {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    background: var(--color-ok, #22c55e);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    margin-top: 1px;
+  }
+
+  .order-footer {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-3);
+  }
+
+  .change-plan {
+    font-size: 0.875rem;
+    color: var(--text-2);
+    text-decoration: underline;
+  }
+
+  .change-plan:hover {
+    color: var(--text-1);
+  }
+
+  /* ── Checkout form ── */
+  .form-card {
+    padding: var(--space-6);
+  }
+
+  .checkout-step {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .step-title {
+    margin: 0;
+  }
+
+  .step-desc {
+    margin: 0;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .form-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .opt {
+    font-weight: 400;
+    opacity: 0.6;
+  }
+
+  .req {
+    color: #ef4444;
+  }
+
+  .form-input {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: var(--radius, 6px);
+    background: var(--surface, #fff);
+    font-size: 1rem;
+    color: inherit;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+  }
+
+  .form-input:focus {
+    outline: 2px solid var(--color-primary, #0ea5e9);
+    outline-offset: 1px;
+    border-color: transparent;
+  }
+
+  .form-error {
+    color: #ef4444;
+    font-size: 0.875rem;
+    padding: var(--space-2) var(--space-3);
+    background: rgba(239, 68, 68, 0.08);
+    border-radius: var(--radius);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  .submit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .already-have-key {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border);
+  }
+
+  .already-have-key .muted {
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  .btn-sm {
+    padding: 0.3rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .btn-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .security-badges {
+    list-style: none;
+    padding: var(--space-3) 0 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    border-top: 1px solid var(--border);
+  }
+
+  .security-badges li {
+    font-size: 0.8rem;
+    color: var(--text-2);
+  }
+
+  /* ── Spinner ── */
+  .spinner-wrap {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-4) 0;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--color-primary, #0ea5e9);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ── Footer ── */
+  .site-footer {
+    padding: var(--space-5) 0;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .site-footer a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  .btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+</style>

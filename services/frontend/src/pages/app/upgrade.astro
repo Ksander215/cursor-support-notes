@@ -1,0 +1,384 @@
+---
+import AppShell from "../../components/layout/AppShell.astro";
+import Card from "../../components/ui/Card.astro";
+---
+
+<AppShell title="Upgrade Plan · sec-scanner.pro" description="Upgrade your subscription plan" active="settings">
+
+  <!-- Success / cancel banners -->
+  <div id="success-banner" style="display:none; padding: var(--space-3) var(--space-4); background: rgba(34,197,94,0.12); border: 1px solid var(--color-ok, #22c55e); border-radius: var(--radius); color: var(--color-ok-text, #15803d); margin-bottom: var(--space-4); font-weight: 500;">
+    🎉 Подписка активирована! Тариф будет обновлён в ближайшие минуты.
+  </div>
+  <div id="cancel-banner" style="display:none; padding: var(--space-3) var(--space-4); background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.4); border-radius: var(--radius); color: #b91c1c; margin-bottom: var(--space-4);">
+    Оплата отменена. Попробуйте снова в любое время.
+  </div>
+
+  <!-- Current plan -->
+  <Card class="section" style="margin-bottom: var(--space-4);">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3);">
+      <div>
+        <h1 class="h2" style="margin-bottom: var(--space-1);">Тариф и подписка</h1>
+        <p class="muted" id="plan-desc-text">Загрузка…</p>
+      </div>
+      <div id="plan-badge-wrap" style="display:none;">
+        <span id="plan-badge" style="display: inline-block; padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: var(--color-ok, #22c55e); color: #fff;">FREE</span>
+      </div>
+    </div>
+    <div id="usage-bar-wrap" style="display:none; margin-top: var(--space-4);">
+      <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: var(--space-1);">
+        <span class="muted">Сканы в этом месяце</span>
+        <span id="usage-text" style="font-weight: 600;">—</span>
+      </div>
+      <div style="height: 8px; background: var(--color-bg-subtle); border-radius: 999px; overflow: hidden; border: 1px solid var(--color-border);">
+        <div id="usage-bar" style="height: 100%; width: 0%; background: var(--color-primary, #0ea5e9); border-radius: 999px; transition: width 0.5s ease;"></div>
+      </div>
+    </div>
+  </Card>
+
+  <!-- Already paid banner -->
+  <div id="paid-banner" style="display:none; margin-bottom: var(--space-4);">
+    <Card class="section">
+      <div style="padding: var(--space-3); background: rgba(34,197,94,0.08); border-radius: var(--radius); border: 1px solid var(--color-ok, #22c55e); color: var(--color-ok-text, #15803d);">
+        ✅ У вас активная платная подписка. Для изменения тарифа или отмены — напишите на
+        <a href="mailto:hello@sec-scanner.pro" style="color: inherit; text-decoration: underline;">hello@sec-scanner.pro</a>.
+      </div>
+    </Card>
+  </div>
+
+  <!-- Plans grid -->
+  <div id="plans-grid" style="display:none;">
+    <h2 class="h3" style="margin-bottom: var(--space-4);">Выберите тариф</h2>
+    <div class="plans-layout">
+
+      <!-- Starter -->
+      <div class="plan-card plan-card--featured">
+        <div class="plan-header">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
+            <h3 class="plan-name">Starter</h3>
+            <span class="plan-tag">Популярный</span>
+          </div>
+          <div class="plan-price">2 900₽<span class="plan-period">/мес.</span></div>
+          <p class="muted plan-desc">Для небольших команд и стартапов</p>
+        </div>
+        <div class="plan-trial">🎁 Первые 7 дней бесплатно</div>
+        <ul class="plan-features">
+          <li>✓ 100 сканов в месяц</li>
+          <li>✓ Все режимы: safe, normal, full</li>
+          <li>✓ PDF, JSON, Markdown отчёты</li>
+          <li>✓ История 90 дней</li>
+          <li>✓ CI/CD интеграции</li>
+          <li>✓ Email-уведомления</li>
+          <li>✓ API-доступ (1 000 запросов/мес.)</li>
+          <li>✓ Приоритетная поддержка</li>
+        </ul>
+        <button class="btn btn-primary plan-btn" data-plan="starter" style="width:100%; justify-content: center; margin-top: auto;">
+          Начать за 0₽ (7 дней) →
+        </button>
+        <div class="plan-error" id="error-starter" style="display:none;"></div>
+      </div>
+
+      <!-- Pro -->
+      <div class="plan-card">
+        <div class="plan-header">
+          <h3 class="plan-name">Pro</h3>
+          <div class="plan-price">9 900₽<span class="plan-period">/мес.</span></div>
+          <p class="muted plan-desc">Для растущих команд и компаний</p>
+        </div>
+        <div class="plan-trial">🎁 Первые 7 дней бесплатно</div>
+        <ul class="plan-features">
+          <li>✓ 500 сканов в месяц</li>
+          <li>✓ Все режимы + расширенные проверки</li>
+          <li>✓ Сканирование зависимостей</li>
+          <li>✓ Интеграция Nmap</li>
+          <li>✓ История 1 год</li>
+          <li>✓ Slack, Telegram, Webhook-уведомления</li>
+          <li>✓ API-доступ (10 000 запросов/мес.)</li>
+          <li>✓ Пользовательские вебхуки</li>
+          <li>✓ Приоритетная поддержка (email + чат)</li>
+        </ul>
+        <button class="btn plan-btn" data-plan="professional" style="width:100%; justify-content: center; margin-top: auto; border: 2px solid var(--color-border);">
+          Начать за 0₽ (7 дней) →
+        </button>
+        <div class="plan-error" id="error-professional" style="display:none;"></div>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="plan-card plan-card--muted">
+        <div class="plan-header">
+          <h3 class="plan-name">Enterprise</h3>
+          <div class="plan-price" style="font-size: 1.5rem;">По запросу</div>
+          <p class="muted plan-desc">Для крупных организаций</p>
+        </div>
+        <ul class="plan-features">
+          <li>✓ Неограниченное число сканов</li>
+          <li>✓ Интеграция OWASP ZAP</li>
+          <li>✓ SAST-анализ (до 10 репозиториев)</li>
+          <li>✓ On-premise развёртывание</li>
+          <li>✓ SLA-гарантии</li>
+          <li>✓ Поддержка 24/7</li>
+          <li>✓ White-label отчёты</li>
+          <li>✓ Выделенный менеджер</li>
+        </ul>
+        <a href="mailto:sales@sec-scanner.pro" class="btn" style="width:100%; justify-content: center; margin-top: auto; text-align: center;">
+          Связаться с нами →
+        </a>
+      </div>
+    </div>
+
+    <p class="muted" style="text-align: center; font-size: 0.85rem; margin-top: var(--space-5);">
+      Оплата через YooKassa. Данные карты не хранятся. Отмена подписки — в любое время.
+    </p>
+  </div>
+
+  <!-- No API key warning -->
+  <div id="no-key-warning" style="display:none;">
+    <Card class="section">
+      <div style="text-align: center; padding: var(--space-5);">
+        <div style="font-size: 3rem; margin-bottom: var(--space-3);">🔑</div>
+        <h2 class="h3" style="margin-bottom: var(--space-2);">Нет API-ключа</h2>
+        <p class="muted" style="margin-bottom: var(--space-4);">Чтобы оформить подписку, сначала создайте API-ключ в настройках.</p>
+        <a href="/app/settings" class="btn btn-primary">Перейти в настройки →</a>
+      </div>
+    </Card>
+  </div>
+
+</AppShell>
+
+<script>
+  const LS_KEY = "sec_scanner_api_key";
+  const LS_BASE_KEY = "sec_scanner_api_base_url";
+  const DEFAULT_API_BASE = ((typeof import.meta !== "undefined" && import.meta.env?.PUBLIC_API_BASE_URL) || "https://api.sec-scanner.pro").replace(/\/+$/, "");
+
+  function getApiKey(): string | null {
+    try { return localStorage.getItem(LS_KEY) || null; } catch { return null; }
+  }
+  function getApiBase(): string {
+    try { return (localStorage.getItem(LS_BASE_KEY) || DEFAULT_API_BASE).replace(/\/+$/, ""); } catch { return DEFAULT_API_BASE; }
+  }
+
+  // Handle return from YooKassa
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("plan_success") === "true") {
+    document.getElementById("success-banner")!.style.display = "block";
+    window.history.replaceState({}, "", window.location.pathname);
+  } else if (params.get("plan_canceled") === "true") {
+    document.getElementById("cancel-banner")!.style.display = "block";
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+
+  async function init() {
+    const apiKey = getApiKey();
+    const apiBase = getApiBase();
+
+    if (!apiKey) {
+      document.getElementById("plan-desc-text")!.textContent = "Нет API-ключа.";
+      document.getElementById("no-key-warning")!.style.display = "block";
+      return;
+    }
+
+    // Load quota
+    try {
+      const res = await fetch(`${apiBase}/api/v1/quota`, {
+        headers: { "X-API-Key": apiKey },
+      });
+
+      if (!res.ok) throw new Error(`${res.status}`);
+      const quota = await res.json();
+
+      const descEl = document.getElementById("plan-desc-text")!;
+      descEl.textContent = `Текущий тариф: ${quota.plan_name}`;
+
+      const badgeWrap = document.getElementById("plan-badge-wrap")!;
+      const badgeEl = document.getElementById("plan-badge")!;
+      badgeWrap.style.display = "block";
+      badgeEl.textContent = (quota.plan_code || "free").toUpperCase();
+
+      const isPaid = quota.plan_code && quota.plan_code !== "free";
+      if (isPaid) {
+        badgeEl.style.background = "var(--color-primary, #0ea5e9)";
+        document.getElementById("paid-banner")!.style.display = "block";
+      } else {
+        document.getElementById("plans-grid")!.style.display = "block";
+      }
+
+      // Usage bar
+      const used = quota.usage?.audits_created ?? 0;
+      const limit = quota.limits?.monthly_audits_quota;
+      if (limit) {
+        document.getElementById("usage-bar-wrap")!.style.display = "block";
+        document.getElementById("usage-text")!.textContent = `${used} / ${limit}`;
+        const pct = Math.min((used / limit) * 100, 100);
+        const bar = document.getElementById("usage-bar")!;
+        bar.style.width = `${pct}%`;
+        if (pct > 80) bar.style.background = "#ef4444";
+        else if (pct > 60) bar.style.background = "#f59e0b";
+      }
+
+    } catch {
+      document.getElementById("plan-desc-text")!.textContent = "Не удалось загрузить тариф.";
+      document.getElementById("plans-grid")!.style.display = "block";
+    }
+  }
+
+  init();
+
+  // Upgrade buttons
+  document.querySelectorAll<HTMLButtonElement>(".plan-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const planCode = btn.dataset.plan;
+      if (!planCode) return;
+
+      const apiKey = getApiKey();
+      const apiBase = getApiBase();
+
+      if (!apiKey) {
+        window.location.href = "/app/settings";
+        return;
+      }
+
+      const errEl = document.getElementById(`error-${planCode}`)!;
+      errEl.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "Создаём сессию оплаты…";
+
+      try {
+        const origin = window.location.origin;
+        const res = await fetch(`${apiBase}/api/v1/payments/checkout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": apiKey,
+          },
+          body: JSON.stringify({
+            plan_code: planCode,
+            success_url: `${origin}/app/upgrade?plan_success=true`,
+            cancel_url: `${origin}/app/upgrade?plan_canceled=true`,
+            country_code: "RU",
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || `Ошибка: ${res.status}`);
+        }
+
+        const data = await res.json();
+        window.location.href = data.url;
+      } catch (err: any) {
+        errEl.textContent = `❌ ${err.message || "Не удалось создать сессию оплаты. Попробуйте позже."}`;
+        errEl.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Начать за 0₽ (7 дней) →";
+      }
+    });
+  });
+</script>
+
+<style>
+  .plans-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-4);
+  }
+
+  @media (min-width: 900px) {
+    .plans-layout {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .plan-card {
+    padding: var(--space-5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  .plan-card:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+
+  .plan-card--featured {
+    border: 2px solid var(--color-primary, #0ea5e9);
+    position: relative;
+  }
+
+  .plan-card--muted {
+    background: var(--color-bg-subtle);
+  }
+
+  .plan-tag {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    background: var(--color-primary, #0ea5e9);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .plan-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .plan-price {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-1);
+    margin: var(--space-1) 0;
+  }
+
+  .plan-period {
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--text-2);
+  }
+
+  .plan-desc {
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  .plan-trial {
+    padding: var(--space-2) var(--space-3);
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid var(--color-ok, #22c55e);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    color: var(--color-ok-text, #15803d);
+    font-weight: 500;
+  }
+
+  .plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    font-size: 0.875rem;
+    flex-grow: 1;
+  }
+
+  .plan-features li {
+    color: var(--text-1);
+  }
+
+  .plan-error {
+    color: #ef4444;
+    font-size: 0.85rem;
+    padding: var(--space-2) var(--space-3);
+    background: rgba(239,68,68,0.08);
+    border-radius: var(--radius);
+    border: 1px solid rgba(239,68,68,0.3);
+  }
+</style>

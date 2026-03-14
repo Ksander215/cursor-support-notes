@@ -88,12 +88,79 @@ import Input from "../../components/ui/Input.astro";
     </div>
   </Card>
 
+  <!-- Subscription / Plan card -->
+  <Card class="section" style="margin-top: var(--space-4);">
+    <h2 class="h3">Подписка и тариф</h2>
+    <p class="muted" style="margin: var(--space-2) 0 var(--space-4);">
+      Текущий тариф и доступные опции апгрейда.
+    </p>
+
+    <div id="plan-loading" style="color: var(--color-text-muted);">Загрузка…</div>
+
+    <div id="plan-info" style="display: none;">
+      <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--color-bg-subtle); border-radius: var(--radius); border: 1px solid var(--color-border);">
+        <div>
+          <div style="font-weight: 600; font-size: 1.1rem;" id="current-plan-name">—</div>
+          <div style="font-size: 0.85rem; color: var(--color-text-muted);" id="current-plan-usage">—</div>
+        </div>
+        <div style="margin-left: auto;">
+          <span id="current-plan-badge" style="display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: var(--color-ok, #22c55e); color: #fff;">FREE</span>
+        </div>
+      </div>
+
+      <!-- Upgrade CTAs (shown only for free plan) -->
+      <div id="upgrade-options" style="display: none;">
+        <h3 class="h4" style="margin-bottom: var(--space-3);">Перейти на платный тариф</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          <div style="padding: var(--space-4); border: 2px solid var(--color-primary, #0ea5e9); border-radius: var(--radius); background: var(--color-bg-subtle);">
+            <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: var(--space-1);">Starter</div>
+            <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: var(--space-2);">2 900₽<span style="font-size: 0.875rem; font-weight: 400; color: var(--color-text-muted);">/мес.</span></div>
+            <ul style="list-style: none; padding: 0; margin: 0 0 var(--space-3); font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px;">
+              <li>✓ 100 сканов / мес.</li>
+              <li>✓ PDF, JSON, Markdown отчёты</li>
+              <li>✓ CI/CD интеграции</li>
+              <li>✓ 7 дней бесплатно</li>
+            </ul>
+            <button class="btn btn-primary upgrade-btn" style="width: 100%; justify-content: center;" data-plan="starter">
+              Попробовать 7 дней →
+            </button>
+          </div>
+          <div style="padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-bg-subtle);">
+            <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: var(--space-1);">Pro</div>
+            <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: var(--space-2);">9 900₽<span style="font-size: 0.875rem; font-weight: 400; color: var(--color-text-muted);">/мес.</span></div>
+            <ul style="list-style: none; padding: 0; margin: 0 0 var(--space-3); font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px;">
+              <li>✓ 500 сканов / мес.</li>
+              <li>✓ Все уведомления</li>
+              <li>✓ Nmap + dep scanning</li>
+              <li>✓ 7 дней бесплатно</li>
+            </ul>
+            <button class="btn upgrade-btn" style="width: 100%; justify-content: center;" data-plan="professional">
+              Попробовать 7 дней →
+            </button>
+          </div>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--color-text-muted); margin-top: var(--space-3); text-align: center;">
+          После пробного периода — автоматическая ежемесячная оплата. Отмена в любое время.
+        </p>
+      </div>
+
+      <!-- Already on paid plan -->
+      <div id="paid-plan-message" style="display: none; padding: var(--space-3); background: var(--color-ok-bg, rgba(34,197,94,0.08)); border-radius: var(--radius); border: 1px solid var(--color-ok, #22c55e); color: var(--color-ok-text, #15803d);">
+        ✅ У вас активная платная подписка. Для изменения тарифа или отмены — напишите на <a href="mailto:hello@sec-scanner.pro" style="color: inherit; text-decoration: underline;">hello@sec-scanner.pro</a>.
+      </div>
+    </div>
+
+    <div id="plan-error" style="display: none; color: var(--color-error, #ef4444); font-size: 0.875rem;">
+      Не удалось загрузить информацию о тарифе. Убедитесь, что API-ключ задан.
+    </div>
+  </Card>
+
   <script type="module" is:inline>
     import { getApiBaseUrl, getApiKey, setApiBaseUrl, setApiKey } from "/src/lib/storage.ts";
     import { getEffects, setEffects } from "/src/lib/effects.ts";
     import { makeClient } from "/src/lib/api.ts";
 
-    const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+    const DEFAULT_API_BASE = ((import.meta?.env?.PUBLIC_API_BASE_URL) || "http://localhost:8000").replace(/\/+$/, "");
 
     function showToast(message, isError = false) {
       const existing = document.getElementById("settings-toast");
@@ -420,6 +487,118 @@ import Input from "../../components/ui/Input.astro";
         elNewKeyDisplay.style.display = "none";
       });
     }
+    });
+
+    // ── Plan / Subscription section ──────────────────────────────
+    async function loadPlanInfo() {
+      const apiBase = getApiBaseUrl(DEFAULT_API_BASE);
+      const currentApiKey = getApiKey();
+      const loadingEl = document.getElementById("plan-loading");
+      const infoEl = document.getElementById("plan-info");
+      const errorEl = document.getElementById("plan-error");
+
+      if (!currentApiKey) {
+        if (loadingEl) loadingEl.style.display = "none";
+        if (errorEl) { errorEl.style.display = "block"; errorEl.textContent = "Добавьте API-ключ выше, чтобы увидеть информацию о тарифе."; }
+        return;
+      }
+
+      try {
+        const client = makeClient(apiBase);
+        const quota = await client.getQuota(currentApiKey);
+
+        if (loadingEl) loadingEl.style.display = "none";
+        if (infoEl) infoEl.style.display = "block";
+
+        const planNameEl = document.getElementById("current-plan-name");
+        const planUsageEl = document.getElementById("current-plan-usage");
+        const planBadgeEl = document.getElementById("current-plan-badge");
+        const upgradeOptions = document.getElementById("upgrade-options");
+        const paidMessage = document.getElementById("paid-plan-message");
+
+        if (planNameEl) planNameEl.textContent = quota.plan_name;
+        if (planUsageEl) {
+          const used = quota.usage?.audits_created ?? 0;
+          const limit = quota.limits?.monthly_audits_quota;
+          planUsageEl.textContent = limit ? `Использовано: ${used} из ${limit} сканов в этом месяце` : `Использовано: ${used} сканов в этом месяце`;
+        }
+        if (planBadgeEl) {
+          planBadgeEl.textContent = (quota.plan_code || "free").toUpperCase();
+          const isPaid = quota.plan_code && quota.plan_code !== "free";
+          planBadgeEl.style.background = isPaid ? "var(--color-primary, #0ea5e9)" : "var(--color-ok, #22c55e)";
+        }
+
+        const isPaid = quota.plan_code && quota.plan_code !== "free";
+        if (upgradeOptions) upgradeOptions.style.display = isPaid ? "none" : "block";
+        if (paidMessage) paidMessage.style.display = isPaid ? "block" : "none";
+
+      } catch {
+        if (loadingEl) loadingEl.style.display = "none";
+        if (errorEl) errorEl.style.display = "block";
+      }
     }
+
+    // Load plan info after a short delay to ensure API key is ready
+    setTimeout(loadPlanInfo, 200);
+
+    // Upgrade buttons — call checkout API directly with existing API key
+    document.querySelectorAll(".upgrade-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const planCode = (btn as HTMLElement).dataset.plan;
+        if (!planCode) return;
+
+        const apiBase = getApiBaseUrl(DEFAULT_API_BASE);
+        const currentApiKey = getApiKey();
+
+        if (!currentApiKey) {
+          showToast("Добавьте API-ключ, чтобы оформить подписку.", true);
+          return;
+        }
+
+        (btn as HTMLButtonElement).disabled = true;
+        (btn as HTMLElement).textContent = "Создаём сессию…";
+
+        try {
+          const origin = window.location.origin;
+          const res = await fetch(`${apiBase}/api/v1/payments/checkout`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": currentApiKey,
+            },
+            body: JSON.stringify({
+              plan_code: planCode,
+              success_url: `${origin}/app/settings?plan_success=true`,
+              cancel_url: `${origin}/app/settings?plan_canceled=true`,
+              country_code: "RU",
+            }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || `Ошибка: ${res.status}`);
+          }
+
+          const data = await res.json();
+          window.location.href = data.url;
+        } catch (err: any) {
+          showToast(`❌ ${err.message || "Не удалось создать сессию оплаты"}`, true);
+          (btn as HTMLButtonElement).disabled = false;
+          (btn as HTMLElement).textContent = "Попробовать 7 дней →";
+        }
+      });
+    });
+
+    // Handle return from payment provider (success/cancel URL params)
+    const settingsParams = new URLSearchParams(window.location.search);
+    if (settingsParams.get("plan_success") === "true") {
+      showToast("🎉 Подписка активирована! Тариф обновится в ближайшие минуты.");
+      window.history.replaceState({}, "", window.location.pathname);
+      setTimeout(loadPlanInfo, 3000);
+    } else if (settingsParams.get("plan_canceled") === "true") {
+      showToast("Оплата отменена. Попробуйте снова в любое время.", true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  });
   </script>
 </AppShell>
