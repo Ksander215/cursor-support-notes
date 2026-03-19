@@ -30,9 +30,10 @@ class TestAPI(unittest.TestCase):
     def test_create_audit_stubbed(self):
         with (
             patch(
-                "src.sec_scanner.api.normalize_target", return_value=("example.com", "example.com")
+                "src.sec_scanner.routers.audits.normalize_target",
+                return_value=("example.com", "example.com"),
             ),
-            patch("src.sec_scanner.api.enqueue_audit", return_value="test-audit-id"),
+            patch("src.sec_scanner.routers.audits.enqueue_audit", return_value="test-audit-id"),
         ):
             r = self.client.post("/api/v1/audits", json={"target": "example.com", "mode": "safe"})
         self.assertEqual(r.status_code, 200)

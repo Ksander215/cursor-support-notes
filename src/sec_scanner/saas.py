@@ -50,8 +50,13 @@ def require_api_key() -> bool:
 
 
 def api_key_pepper() -> str:
-    # IMPORTANT: set in production; dev default is intentionally weak.
-    return os.getenv("SEC_SCANNER_API_KEY_PEPPER", "dev-insecure-pepper")
+    pepper = os.getenv("SEC_SCANNER_API_KEY_PEPPER", "").strip()
+    if not pepper:
+        raise RuntimeError(
+            "SEC_SCANNER_API_KEY_PEPPER environment variable must be set in production. "
+            'Generate a secure random value: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+        )
+    return pepper
 
 
 def extract_api_key(request: Request) -> str | None:
@@ -153,13 +158,16 @@ def load_auth_context_or_none(raw_key: str) -> AuthContext | None:
 
 
 def _path_requires_auth(path: str) -> bool:
-    """Paths that require API key auth: /api/v1/*, /stripe/* and /payments/* except webhooks."""
+    """Paths that require API key auth: /api/v1/*, /stripe/* and /payments/* except webhooks and public endpoints."""
     if not path:
         return False
     if path.startswith("/api/v1"):
         return True
     if "/webhook" in path:
         return False  # Stripe/YooKassa webhooks use signature, not API key
+    # Public payment endpoints (digital products catalog and purchase)
+    if path.startswith("/payments/products"):
+        return False  # Public: catalog and purchase endpoints
     if path.startswith("/stripe") or path.startswith("/payments"):
         return True
     return False
@@ -246,7 +254,14 @@ async def saas_http_middleware(request: Request, call_next):
     raw_key = extract_api_key(request)
     if not raw_key:
         if require_api_key():
-            return JSONResponse(status_code=401, content={"detail": "API key required"})
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "detail": "API key required",
+                    "error_code": "API_KEY_REQUIRED",
+                    "hint": "Add X-API-Key header or Authorization: Bearer <key>",
+                },
+            )
         request.state.auth = None
         request.state.tenant_id = None
         request.state.api_key_id = None
@@ -254,7 +269,14 @@ async def saas_http_middleware(request: Request, call_next):
 
     auth = load_auth_context_or_none(raw_key)
     if not auth:
-        return JSONResponse(status_code=401, content={"detail": "invalid API key"})
+        return JSONResponse(
+            status_code=401,
+            content={
+                "detail": "Invalid API key",
+                "error_code": "INVALID_API_KEY",
+                "hint": "Check your API key in Settings → API keys or create a new one",
+            },
+        )
 
     request.state.auth = auth
     request.state.tenant_id = auth.tenant_id
@@ -265,7 +287,13 @@ async def saas_http_middleware(request: Request, call_next):
         try:
             await enforce_rpm_or_raise(auth.api_key_id, auth.requests_per_minute)
         except HTTPException as e:
-            resp = JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+            content = {"detail": e.detail}
+            if e.status_code == 429:
+                content["error_code"] = "RATE_LIMIT_EXCEEDED"
+                content["hint"] = (
+                    "Wait until the next minute or upgrade your plan for higher limits"
+                )
+            resp = JSONResponse(status_code=e.status_code, content=content)
             if e.status_code == 429:
                 resp.headers["Retry-After"] = "60"
             return resp

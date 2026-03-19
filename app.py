@@ -14,10 +14,19 @@ from sqlalchemy import text
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from src.sec_scanner import db as sec_db
-from src.sec_scanner.api import router as sec_scanner_router
+from src.sec_scanner.api_metrics import router as metrics_router
 from src.sec_scanner.api_payments import router as payments_router
 from src.sec_scanner.api_stripe import router as stripe_router
 from src.sec_scanner.logging_config import set_request_id, setup_structured_logging
+from src.sec_scanner.routers import (
+    audits_router,
+    config_router,
+    keys_router,
+    leads_router,
+    notifications_router,
+    referrals_router,
+    webhooks_router,
+)
 from src.sec_scanner.saas import saas_http_middleware
 from src.sec_scanner.security_headers import add_security_headers_middleware
 from src.sec_scanner.websocket_manager import manager as ws_manager
@@ -31,9 +40,30 @@ setup_structured_logging(use_json=use_json_logging)
 
 logger = logging.getLogger("sec_scanner")
 
+# Sentry — error tracking and performance monitoring.
+# Set SENTRY_DSN in .env.production to enable. No-op if unset.
+_sentry_dsn = os.getenv("SENTRY_DSN", "").strip()
+if _sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        profiles_sample_rate=float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.0")),
+        environment=os.getenv("ENVIRONMENT", "production"),
+        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        send_default_pii=False,
+    )
+    logger.info("Sentry initialized (env=%s)", os.getenv("ENVIRONMENT", "production"))
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # Validate required security settings
+    _check_security_config()
+
     # init local sqlite (for audit history)
     sec_db.init_db()
 
@@ -54,6 +84,24 @@ async def lifespan(_app: FastAPI):
         logger.warning(f"WebSocket manager failed to stop: {e}")
 
 
+def _check_security_config() -> None:
+    """Validate critical security configuration at startup."""
+    from src.sec_scanner.saas import api_key_pepper
+
+    try:
+        pepper = api_key_pepper()
+        # Check pepper length (minimum 16 chars for security)
+        if len(pepper) < 16:
+            logger.warning(
+                "SEC_SCANNER_API_KEY_PEPPER is too short. "
+                "Use at least 16 characters for better security. "
+                'Generate: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+            )
+    except RuntimeError:
+        # Pepper not set - this is expected in development
+        pass
+
+
 app = FastAPI(title=APP_NAME, lifespan=lifespan)
 
 # Host header hardening (prevents Host-header attacks)
@@ -70,7 +118,17 @@ _cors_origins_raw = os.getenv("SEC_SCANNER_CORS_ORIGINS", "").strip()
 cors_origins = (
     [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
     if _cors_origins_raw
-    else ["https://api.sec-scanner.pro", "https://sec-scanner.pro"]
+    else [
+        "https://api.sec-scanner.pro",
+        "https://sec-scanner.pro",
+        # Development origins
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:4321",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:4321",
+    ]
 )
 if cors_origins:
     app.add_middleware(
@@ -111,14 +169,23 @@ async def request_id_middleware(request: Request, call_next):
 # SaaS scaffold: optional API key auth + usage/rate-limit hooks for /api/v1/*
 app.middleware("http")(saas_http_middleware)
 
-# attach sec-scanner API
-app.include_router(sec_scanner_router)
+# attach sec-scanner API routers
+app.include_router(audits_router)
+app.include_router(keys_router)
+app.include_router(notifications_router)
+app.include_router(webhooks_router)
+app.include_router(referrals_router)
+app.include_router(leads_router)
+app.include_router(config_router)
 
 # attach Stripe API (payment processing) - legacy, kept for backward compatibility
 app.include_router(stripe_router)
 
 # attach Payments API (supports multiple providers: Stripe, YooKassa)
 app.include_router(payments_router)
+
+# attach admin metrics API (requires admin API key)
+app.include_router(metrics_router)
 
 
 @app.get("/")
@@ -420,28 +487,30 @@ async def websocket_audit_progress(websocket: WebSocket, audit_id: str):
 
                 if running_step:
                     step_prog = running_step.get("step_progress") or 0
-                    overall = int(
-                        (completed_steps / total_steps) * 100 + (step_prog / total_steps)
-                    )
+                    overall = int((completed_steps / total_steps) * 100 + (step_prog / total_steps))
                 else:
                     overall = int((completed_steps / total_steps) * 100) if total_steps else 0
 
                 # Send current state
-                await websocket.send_json({
-                    "type": "initial_state",
-                    "audit_id": audit_id,
-                    "status": audit.get("status"),
-                    "steps": progress_steps,
-                    "overall_progress": overall,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "initial_state",
+                        "audit_id": audit_id,
+                        "status": audit.get("status"),
+                        "steps": progress_steps,
+                        "overall_progress": overall,
+                    }
+                )
         elif audit.get("status") in ("completed", "failed"):
             # Audit already finished, send complete message and close
-            await websocket.send_json({
-                "type": "complete",
-                "audit_id": audit_id,
-                "status": audit.get("status"),
-                "score": audit.get("score"),
-            })
+            await websocket.send_json(
+                {
+                    "type": "complete",
+                    "audit_id": audit_id,
+                    "status": audit.get("status"),
+                    "score": audit.get("score"),
+                }
+            )
             await websocket.close(code=1000, reason="Audit already completed")
             return
 

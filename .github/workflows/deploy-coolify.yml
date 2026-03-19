@@ -1,0 +1,115 @@
+name: Deploy via Coolify
+
+# Деплой через Coolify webhook при пуше в main/master.
+# Coolify сам пересобирает образы и перезапускает контейнеры.
+#
+# Необходимые GitHub Secrets:
+#   COOLIFY_WEBHOOK   — Deploy webhook URL (Coolify → Application → Webhooks → Deploy)
+#   COOLIFY_URL       — URL вашего Coolify, например https://coolify.sec-scanner.pro (для ссылки в summary)
+#
+# Опционально:
+#   VPS_API_URL       — например https://api.sec-scanner.pro (для smoke-test)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'src/**'
+      - 'services/frontend/**'
+      - 'services/web-check/**'
+      - 'docker-compose.coolify.yml'
+      - 'Dockerfile'
+      - '.github/workflows/deploy-coolify.yml'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force rebuild (пересобрать образы без кэша)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  deploy:
+    name: Trigger Coolify Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate webhook secret
+        run: |
+          if [ -z "${{ secrets.COOLIFY_WEBHOOK }}" ]; then
+            echo "::error::Secret COOLIFY_WEBHOOK не задан. Добавьте Deploy webhook URL в GitHub → Settings → Secrets."
+            exit 1
+          fi
+          echo "Webhook URL найден: ${COOLIFY_WEBHOOK:0:50}..."
+
+      - name: Trigger Coolify deployment
+        id: deploy
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+        run: |
+          echo "Триггерим Coolify deployment..."
+
+          RESPONSE=$(curl -sf \
+            -X GET \
+            -H "Content-Type: application/json" \
+            "${COOLIFY_WEBHOOK}" \
+            -w "\n%{http_code}" \
+            2>&1)
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -c 500)
+
+          echo "Response (truncated): $BODY"
+          echo "HTTP status: $HTTP_CODE"
+
+          # Coolify returns 200 on success, various codes for errors
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::error::Coolify deploy failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+
+          echo "✅ Coolify deployment triggered successfully"
+
+      - name: Wait for deployment to complete
+        run: |
+          echo "Ожидаем 30 секунд для начала деплоя..."
+          sleep 30
+
+          # Give user instruction to check Coolify UI
+          if [ -n "${{ secrets.COOLIFY_URL }}" ]; then
+            echo "📊 Проверьте статус деплоя в Coolify UI:"
+            echo "   ${{ secrets.COOLIFY_URL }}"
+          fi
+
+      - name: Smoke test — health check
+        if: secrets.VPS_API_URL != ''
+        run: |
+          API_URL="${{ secrets.VPS_API_URL }}"
+          echo "Smoke test: ${API_URL}/healthz"
+
+          for i in 1 2 3 4 5; do
+            HTTP=$(curl -sf -o /dev/null -w "%{http_code}" "${API_URL}/healthz" 2>/dev/null || echo "000")
+            if [ "$HTTP" = "200" ]; then
+              echo "✅ /healthz → 200 OK"
+              exit 0
+            fi
+            echo "  Попытка $i: HTTP $HTTP, ждём 15s..."
+            sleep 15
+          done
+          echo "::warning::/healthz не ответил 200 после 5 попыток. Проверьте Coolify UI."
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Coolify Deploy Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Commit:** \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Branch:** \`${{ github.ref_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Triggered by:** ${{ github.actor }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${{ secrets.COOLIFY_URL }}" ]; then
+            echo "- **Coolify URL:** ${{ secrets.COOLIFY_URL }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "🔗 [Открыть Coolify dashboard](${{ secrets.COOLIFY_URL }})" >> "$GITHUB_STEP_SUMMARY"
+          fi
