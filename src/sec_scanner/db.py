@@ -12,12 +12,16 @@ from .models import (
     Audit,
     AuditLog,
     Base,
+    DigitalOrder,
+    Lead,
     NotificationSettings,
     Organization,
     Payment,
     Plan,
+    Referral,
     ScanProgress,
     UsageBucket,
+    Webhook,
 )
 
 
@@ -87,6 +91,7 @@ def create_audit(
     *,
     tenant_id: int | None = None,
     created_by_api_key_id: str | None = None,
+    is_guest: bool = False,
 ) -> str:
     audit_id = str(uuid.uuid4())
     with get_session() as s:
@@ -98,6 +103,7 @@ def create_audit(
                 target=target,
                 mode=mode,
                 status="queued",
+                is_guest=is_guest,
             )
         )
         s.commit()
@@ -177,6 +183,9 @@ def get_org_by_id(org_id: int) -> dict[str, Any] | None:
             "name": org.name,
             "plan_id": org.plan_id,
             "is_active": org.is_active,
+            "white_label_config": org.white_label_config
+            if hasattr(org, "white_label_config")
+            else None,
         }
 
 
@@ -203,6 +212,16 @@ def update_org_plan(org_id: int, plan_id: int) -> None:
         if not org:
             raise ValueError(f"Organization {org_id} not found")
         org.plan_id = plan_id
+        s.commit()
+
+
+def update_org_whitelabel_config(org_id: int, config: dict[str, Any]) -> None:
+    """Update organization's white-label configuration"""
+    with get_session() as s:
+        org = s.get(Organization, org_id)
+        if not org:
+            raise ValueError(f"Organization {org_id} not found")
+        org.white_label_config = config
         s.commit()
 
 
@@ -576,6 +595,20 @@ def get_quota_info(*, tenant_id: int) -> dict[str, Any] | None:
                 "month_start": month_start.isoformat(),
             },
         }
+
+
+def count_running_audits(*, tenant_id: int) -> int:
+    """Count running/queued audits for an organization."""
+    with get_session() as s:
+        return (
+            s.scalar(
+                select(func.count())
+                .select_from(Audit)
+                .where(Audit.tenant_id == tenant_id)
+                .where(Audit.status.in_(["queued", "running"]))
+            )
+            or 0
+        )
 
 
 def get_notification_settings(*, org_id: int) -> list[dict[str, Any]]:
@@ -1040,3 +1073,925 @@ def update_payment_status(
                 payment.payment_metadata = payment_metadata
         s.commit()
         return True
+
+
+# ============================================================================
+# Реферальная система
+# ============================================================================
+
+import secrets
+import string
+
+
+def generate_referral_code() -> str:
+    """Генерирует уникальный реферальный код (8 символов, буквы и цифры)."""
+    alphabet = string.ascii_uppercase + string.digits
+    with get_session() as s:
+        while True:
+            code = "".join(secrets.choice(alphabet) for _ in range(8))
+            # Проверяем уникальность
+            exists = s.scalar(select(Organization).filter(Organization.referral_code == code))
+            if not exists:
+                return code
+
+
+def set_referral_code(org_id: int) -> str:
+    """Устанавливает реферальный код для организации. Возвращает код."""
+    with get_session() as s:
+        org = s.scalar(select(Organization).filter(Organization.id == org_id))
+        if not org:
+            raise ValueError(f"Organization {org_id} not found")
+
+        if org.referral_code:
+            return org.referral_code  # Уже есть код
+
+        code = generate_referral_code()
+        org.referral_code = code
+        s.commit()
+        return code
+
+
+def get_referral_code(org_id: int) -> str | None:
+    """Получает реферальный код организации."""
+    with get_session() as s:
+        org = s.scalar(select(Organization).filter(Organization.id == org_id))
+        return org.referral_code if org else None
+
+
+def register_referral(client_org_id: int, referral_code: str) -> bool:
+    """Регистрирует реферала по коду. Возвращает True если успешно."""
+    with get_session() as s:
+        # Находим партнёра по коду
+        partner_org = s.scalar(
+            select(Organization).filter(Organization.referral_code == referral_code)
+        )
+
+        if not partner_org:
+            return False
+
+        # Проверяем, что клиент ещё не был зарегистрирован
+        client_org = s.scalar(select(Organization).filter(Organization.id == client_org_id))
+
+        if not client_org or client_org.referred_by_org_id:
+            return False  # Уже зарегистрирован или не найден
+
+        # Регистрируем реферала
+        client_org.referred_by_org_id = partner_org.id
+        s.commit()
+        return True
+
+
+def calculate_referral_commission(payment_id: int, payment_amount: float, plan_code: str) -> None:
+    """Рассчитывает и создаёт запись о комиссии для реферала."""
+    with get_session() as s:
+        # Находим платеж
+        payment = s.scalar(select(Payment).filter(Payment.id == payment_id))
+        if not payment:
+            return
+
+        # Находим организацию клиента
+        client_org = s.scalar(select(Organization).filter(Organization.id == payment.org_id))
+
+        if not client_org or not client_org.referred_by_org_id:
+            return  # Нет реферала
+
+        # Проверяем, не была ли уже создана запись о комиссии для этого платежа
+        existing = s.scalar(select(Referral).filter(Referral.payment_id == payment_id))
+        if existing:
+            return  # Уже создана
+
+        # Рассчитываем комиссию (20% от первого платежа)
+        commission_percent = 20.0
+        commission_amount = payment_amount * (commission_percent / 100.0)
+
+        # Создаём запись о комиссии
+        referral = Referral(
+            partner_org_id=client_org.referred_by_org_id,
+            client_org_id=client_org.id,
+            payment_id=payment_id,
+            commission_amount=commission_amount,
+            commission_percent=commission_percent,
+            payment_amount=payment_amount,
+            plan_code=plan_code,
+            status="pending",
+        )
+        s.add(referral)
+        s.commit()
+
+
+def get_referral_stats(org_id: int) -> dict[str, Any]:
+    """Получает статистику по реферальной программе для организации."""
+    with get_session() as s:
+        org = s.scalar(select(Organization).filter(Organization.id == org_id))
+        if not org:
+            raise ValueError(f"Organization {org_id} not found")
+
+        # Получаем реферальный код (создаём если нет)
+        referral_code = org.referral_code or set_referral_code(org_id)
+
+        # Получаем всех рефералов
+        referrals = s.scalars(select(Referral).filter(Referral.partner_org_id == org_id)).all()
+
+        # Получаем организации клиентов
+        client_orgs = {}
+        for ref in referrals:
+            if ref.client_org_id not in client_orgs:
+                client_org = s.scalar(
+                    select(Organization).filter(Organization.id == ref.client_org_id)
+                )
+                if client_org:
+                    client_orgs[ref.client_org_id] = client_org.name
+
+        # Подсчитываем статистику
+        total_referrals = len(referrals)
+        active_referrals = len([r for r in referrals if r.status == "paid"])
+        total_commission = sum(r.commission_amount for r in referrals)
+        pending_commission = sum(r.commission_amount for r in referrals if r.status == "pending")
+        paid_commission = sum(r.commission_amount for r in referrals if r.status == "paid")
+
+        # Формируем список рефералов
+        referrals_list = []
+        for ref in referrals:
+            referrals_list.append(
+                {
+                    "client_org_id": ref.client_org_id,
+                    "client_name": client_orgs.get(ref.client_org_id, "Unknown"),
+                    "plan_code": ref.plan_code,
+                    "commission_amount": ref.commission_amount,
+                    "status": ref.status,
+                    "created_at": ref.created_at.isoformat() if ref.created_at else None,
+                }
+            )
+
+        return {
+            "referral_code": referral_code,
+            "total_referrals": total_referrals,
+            "active_referrals": active_referrals,
+            "total_commission": total_commission,
+            "pending_commission": pending_commission,
+            "paid_commission": paid_commission,
+            "referrals": referrals_list,
+        }
+
+
+# Webhooks
+def create_webhook(
+    *,
+    org_id: int,
+    url: str,
+    events: list[str],
+    secret: str | None = None,
+    enabled: bool = True,
+) -> dict[str, Any]:
+    """Create a new webhook configuration."""
+    with get_session() as s:
+        webhook = Webhook(
+            org_id=org_id,
+            url=url,
+            events=events,
+            secret=secret,
+            enabled=enabled,
+        )
+        s.add(webhook)
+        s.commit()
+        s.refresh(webhook)
+
+        return {
+            "id": webhook.id,
+            "org_id": webhook.org_id,
+            "url": webhook.url,
+            "events": webhook.events,
+            "enabled": webhook.enabled,
+            "retry_count": webhook.retry_count,
+            "last_delivery_at": webhook.last_delivery_at.isoformat()
+            if webhook.last_delivery_at
+            else None,
+            "last_failure_at": webhook.last_failure_at.isoformat()
+            if webhook.last_failure_at
+            else None,
+            "last_failure_reason": webhook.last_failure_reason,
+            "created_at": webhook.created_at.isoformat(),
+            "updated_at": webhook.updated_at.isoformat(),
+        }
+
+
+def get_webhooks(*, org_id: int) -> list[dict[str, Any]]:
+    """Get all webhooks for an organization."""
+    with get_session() as s:
+        webhooks = s.scalars(
+            select(Webhook).filter(Webhook.org_id == org_id).order_by(Webhook.created_at.desc())
+        ).all()
+
+        return [
+            {
+                "id": w.id,
+                "org_id": w.org_id,
+                "url": w.url,
+                "events": w.events,
+                "enabled": w.enabled,
+                "retry_count": w.retry_count,
+                "last_delivery_at": w.last_delivery_at.isoformat() if w.last_delivery_at else None,
+                "last_failure_at": w.last_failure_at.isoformat() if w.last_failure_at else None,
+                "last_failure_reason": w.last_failure_reason,
+                "created_at": w.created_at.isoformat(),
+                "updated_at": w.updated_at.isoformat(),
+            }
+            for w in webhooks
+        ]
+
+
+def get_webhook_by_id(*, webhook_id: int, org_id: int) -> dict[str, Any] | None:
+    """Get a webhook by ID (with org_id check for security)."""
+    with get_session() as s:
+        webhook = s.scalar(
+            select(Webhook).filter(Webhook.id == webhook_id, Webhook.org_id == org_id)
+        )
+
+        if not webhook:
+            return None
+
+        return {
+            "id": webhook.id,
+            "org_id": webhook.org_id,
+            "url": webhook.url,
+            "events": webhook.events,
+            "enabled": webhook.enabled,
+            "retry_count": webhook.retry_count,
+            "last_delivery_at": webhook.last_delivery_at.isoformat()
+            if webhook.last_delivery_at
+            else None,
+            "last_failure_at": webhook.last_failure_at.isoformat()
+            if webhook.last_failure_at
+            else None,
+            "last_failure_reason": webhook.last_failure_reason,
+            "created_at": webhook.created_at.isoformat(),
+            "updated_at": webhook.updated_at.isoformat(),
+        }
+
+
+def get_webhook_by_id_internal(*, webhook_id: int) -> dict[str, Any] | None:
+    """Get a webhook by ID (internal use, no org_id check)."""
+    with get_session() as s:
+        webhook = s.scalar(select(Webhook).filter(Webhook.id == webhook_id))
+
+        if not webhook:
+            return None
+
+        return {
+            "id": webhook.id,
+            "org_id": webhook.org_id,
+            "url": webhook.url,
+            "events": webhook.events,
+            "secret": webhook.secret,
+            "enabled": webhook.enabled,
+            "retry_count": webhook.retry_count,
+        }
+
+
+def update_webhook(
+    *,
+    webhook_id: int,
+    org_id: int,
+    url: str | None = None,
+    events: list[str] | None = None,
+    secret: str | None = None,
+    enabled: bool | None = None,
+) -> dict[str, Any] | None:
+    """Update a webhook configuration."""
+    with get_session() as s:
+        webhook = s.scalar(
+            select(Webhook).filter(Webhook.id == webhook_id, Webhook.org_id == org_id)
+        )
+
+        if not webhook:
+            return None
+
+        if url is not None:
+            webhook.url = url
+        if events is not None:
+            webhook.events = events
+        if secret is not None:
+            webhook.secret = secret
+        if enabled is not None:
+            webhook.enabled = enabled
+
+        webhook.updated_at = datetime.now(UTC)
+        s.commit()
+        s.refresh(webhook)
+
+        return {
+            "id": webhook.id,
+            "org_id": webhook.org_id,
+            "url": webhook.url,
+            "events": webhook.events,
+            "enabled": webhook.enabled,
+            "retry_count": webhook.retry_count,
+            "last_delivery_at": webhook.last_delivery_at.isoformat()
+            if webhook.last_delivery_at
+            else None,
+            "last_failure_at": webhook.last_failure_at.isoformat()
+            if webhook.last_failure_at
+            else None,
+            "last_failure_reason": webhook.last_failure_reason,
+            "created_at": webhook.created_at.isoformat(),
+            "updated_at": webhook.updated_at.isoformat(),
+        }
+
+
+def delete_webhook(*, webhook_id: int, org_id: int) -> bool:
+    """Delete a webhook (returns True if deleted, False if not found)."""
+    with get_session() as s:
+        webhook = s.scalar(
+            select(Webhook).filter(Webhook.id == webhook_id, Webhook.org_id == org_id)
+        )
+
+        if not webhook:
+            return False
+
+        s.delete(webhook)
+        s.commit()
+        return True
+
+
+def get_enabled_webhooks_for_event(*, event: str) -> list[dict[str, Any]]:
+    """Get all enabled webhooks that subscribe to a specific event."""
+    with get_session() as s:
+        # Get all enabled webhooks and filter in Python (works for both SQLite and PostgreSQL)
+        webhooks = s.scalars(
+            select(Webhook).filter(Webhook.enabled == True)  # noqa: E712
+        ).all()
+
+        # Filter webhooks that subscribe to this event
+        matching_webhooks = [
+            w for w in webhooks if isinstance(w.events, list) and event in w.events
+        ]
+
+        return [
+            {
+                "id": w.id,
+                "org_id": w.org_id,
+                "url": w.url,
+                "events": w.events,
+                "secret": w.secret,
+                "retry_count": w.retry_count,
+            }
+            for w in matching_webhooks
+        ]
+
+
+def update_webhook_delivery_status(
+    *,
+    webhook_id: int,
+    success: bool,
+    failure_reason: str | None = None,
+) -> None:
+    """Update webhook delivery status (success or failure)."""
+    with get_session() as s:
+        webhook = s.scalar(select(Webhook).filter(Webhook.id == webhook_id))
+
+        if not webhook:
+            return
+
+        if success:
+            webhook.last_delivery_at = datetime.now(UTC)
+            webhook.last_failure_at = None
+            webhook.last_failure_reason = None
+            webhook.retry_count = 0
+        else:
+            webhook.last_failure_at = datetime.now(UTC)
+            webhook.last_failure_reason = failure_reason
+            webhook.retry_count += 1
+
+        webhook.updated_at = datetime.now(UTC)
+        s.commit()
+
+
+# ============================================================================
+# Digital Orders (for digital products: PDF guides, CI/CD templates)
+# ============================================================================
+
+
+def create_digital_order(
+    *,
+    order_id: str,
+    email: str,
+    product_type: str,
+    product_name: str,
+    amount: float,
+    currency: str = "RUB",
+    payment_provider: str = "yookassa",
+    org_id: int | None = None,
+    referral_code: str | None = None,
+    customer_ip: str | None = None,
+    user_agent: str | None = None,
+) -> dict[str, Any]:
+    """
+    Create a new digital product order.
+
+    Args:
+        order_id: Unique order UUID
+        email: Customer email for delivery
+        product_type: Product type ("pdf_guide", "ci_templates", "audit")
+        product_name: Display name of the product
+        amount: Price
+        currency: Currency code (default: "RUB")
+        payment_provider: "yookassa" or "stripe"
+        org_id: Optional organization ID
+        referral_code: Optional referral code
+        customer_ip: Customer IP address
+        user_agent: User agent string
+
+    Returns:
+        Dictionary with order details
+    """
+    with get_session() as s:
+        order = DigitalOrder(
+            order_id=order_id,
+            email=email,
+            org_id=org_id,
+            product_type=product_type,
+            product_name=product_name,
+            amount=amount,
+            currency=currency,
+            payment_provider=payment_provider,
+            payment_status="pending",
+            delivery_status="pending",
+            referral_code=referral_code,
+            customer_ip=customer_ip,
+            user_agent=user_agent,
+        )
+        s.add(order)
+        s.commit()
+        s.refresh(order)
+
+        return {
+            "id": order.id,
+            "order_id": order.order_id,
+            "email": order.email,
+            "org_id": order.org_id,
+            "product_type": order.product_type,
+            "product_name": order.product_name,
+            "amount": order.amount,
+            "currency": order.currency,
+            "payment_provider": order.payment_provider,
+            "payment_status": order.payment_status,
+            "delivery_status": order.delivery_status,
+            "referral_code": order.referral_code,
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+        }
+
+
+def get_digital_order_by_id(order_id: str) -> dict[str, Any] | None:
+    """Get digital order by order_id (UUID)."""
+    with get_session() as s:
+        order = s.scalar(select(DigitalOrder).filter(DigitalOrder.order_id == order_id))
+        if not order:
+            return None
+
+        return {
+            "id": order.id,
+            "order_id": order.order_id,
+            "email": order.email,
+            "org_id": order.org_id,
+            "product_type": order.product_type,
+            "product_name": order.product_name,
+            "amount": order.amount,
+            "currency": order.currency,
+            "payment_provider": order.payment_provider,
+            "payment_id": order.payment_id,
+            "payment_status": order.payment_status,
+            "delivery_status": order.delivery_status,
+            "referral_code": order.referral_code,
+            "commission_calculated": order.commission_calculated,
+            "delivery_attempts": order.delivery_attempts,
+            "delivered_at": order.delivered_at.isoformat() if order.delivered_at else None,
+            "delivery_error": order.delivery_error,
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+            "updated_at": order.updated_at.isoformat() if order.updated_at else None,
+            "paid_at": order.paid_at.isoformat() if order.paid_at else None,
+        }
+
+
+def update_digital_order_payment(
+    order_id: str,
+    *,
+    payment_id: str,
+    payment_status: str,
+) -> bool:
+    """
+    Update digital order payment status.
+
+    Args:
+        order_id: Order UUID
+        payment_id: Payment ID from provider
+        payment_status: New status ("paid", "failed", "refunded")
+
+    Returns:
+        True if updated, False if order not found
+    """
+    with get_session() as s:
+        order = s.scalar(select(DigitalOrder).filter(DigitalOrder.order_id == order_id))
+        if not order:
+            return False
+
+        order.payment_id = payment_id
+        order.payment_status = payment_status
+        order.updated_at = datetime.now(UTC)
+
+        if payment_status == "paid":
+            order.paid_at = datetime.now(UTC)
+
+        s.commit()
+        return True
+
+
+def update_digital_order_delivery(
+    order_id: str,
+    *,
+    delivery_status: str,
+    delivery_error: str | None = None,
+) -> bool:
+    """
+    Update digital order delivery status.
+
+    Args:
+        order_id: Order UUID
+        delivery_status: "pending", "sent", "failed"
+        delivery_error: Error message if failed
+
+    Returns:
+        True if updated, False if order not found
+    """
+    with get_session() as s:
+        order = s.scalar(select(DigitalOrder).filter(DigitalOrder.order_id == order_id))
+        if not order:
+            return False
+
+        order.delivery_status = delivery_status
+        order.delivery_attempts = (order.delivery_attempts or 0) + 1
+
+        if delivery_status == "sent":
+            order.delivered_at = datetime.now(UTC)
+            order.delivery_error = None
+        elif delivery_error:
+            order.delivery_error = delivery_error
+
+        order.updated_at = datetime.now(UTC)
+        s.commit()
+        return True
+
+
+def mark_digital_order_commission_calculated(order_id: str) -> bool:
+    """Mark that referral commission was calculated for this order."""
+    with get_session() as s:
+        order = s.scalar(select(DigitalOrder).filter(DigitalOrder.order_id == order_id))
+        if not order:
+            return False
+
+        order.commission_calculated = True
+        order.updated_at = datetime.now(UTC)
+        s.commit()
+        return True
+
+
+def get_pending_digital_deliveries(limit: int = 50) -> list[dict[str, Any]]:
+    """
+    Get orders that are paid but not yet delivered.
+    Used by background workers or n8n for automated delivery.
+
+    Args:
+        limit: Maximum number of orders to return
+
+    Returns:
+        List of pending delivery orders
+    """
+    with get_session() as s:
+        orders = s.scalars(
+            select(DigitalOrder)
+            .filter(DigitalOrder.payment_status == "paid")
+            .filter(DigitalOrder.delivery_status.in_(["pending", "failed"]))
+            .filter(DigitalOrder.delivery_attempts < 3)  # Max 3 attempts
+            .order_by(DigitalOrder.created_at)
+            .limit(limit)
+        ).all()
+
+        return [
+            {
+                "id": o.id,
+                "order_id": o.order_id,
+                "email": o.email,
+                "product_type": o.product_type,
+                "product_name": o.product_name,
+                "delivery_attempts": o.delivery_attempts,
+                "created_at": o.created_at.isoformat() if o.created_at else None,
+            }
+            for o in orders
+        ]
+
+
+# ============================================================================
+# Leads (marketing funnel capture)
+# ============================================================================
+
+
+def create_lead(
+    email: str,
+    source: str,
+    *,
+    name: str | None = None,
+    ip_address: str | None = None,
+    referral_code: str | None = None,
+    utm_source: str | None = None,
+    utm_medium: str | None = None,
+    utm_campaign: str | None = None,
+    utm_content: str | None = None,
+    utm_term: str | None = None,
+    extra_data: dict[str, Any] | None = None,
+) -> int:
+    """
+    Persist a new marketing lead.
+
+    Args:
+        email: Lead's email address
+        source: Acquisition channel — "checklist", "free_scan", or "beta"
+        name: Optional display name
+        ip_address: Remote IP for fraud detection
+        referral_code: Referral code used (if any)
+        utm_source: UTM source parameter
+        utm_medium: UTM medium parameter
+        utm_campaign: UTM campaign parameter
+        utm_content: UTM content parameter
+        utm_term: UTM term parameter
+        extra_data: Additional metadata (company, role, etc.)
+
+    Returns:
+        The new lead's database ID
+    """
+    with get_session() as s:
+        lead = Lead(
+            email=email.lower().strip(),
+            name=name,
+            source=source,
+            ip_address=ip_address,
+            referral_code=referral_code,
+            utm_source=utm_source,
+            utm_medium=utm_medium,
+            utm_campaign=utm_campaign,
+            utm_content=utm_content,
+            utm_term=utm_term,
+            extra_data=extra_data,
+            score=0,
+            segment="cold",
+        )
+        s.add(lead)
+        s.commit()
+        s.refresh(lead)
+        return lead.id
+
+
+def get_lead(lead_id: int) -> dict[str, Any] | None:
+    """Get lead by ID."""
+    with get_session() as s:
+        lead = s.get(Lead, lead_id)
+        if not lead:
+            return None
+        return {
+            "id": lead.id,
+            "email": lead.email,
+            "name": lead.name,
+            "source": lead.source,
+            "score": lead.score,
+            "segment": lead.segment,
+            "utm_source": lead.utm_source,
+            "utm_medium": lead.utm_medium,
+            "utm_campaign": lead.utm_campaign,
+            "utm_content": lead.utm_content,
+            "utm_term": lead.utm_term,
+            "extra_data": lead.extra_data,
+            "pipedrive_deal_id": lead.pipedrive_deal_id,
+            "last_activity_at": lead.last_activity_at.isoformat()
+            if lead.last_activity_at
+            else None,
+            "created_at": lead.created_at.isoformat() if lead.created_at else None,
+        }
+
+
+def update_lead_pipedrive_deal_id(lead_id: int, deal_id: int) -> None:
+    """Update Pipedrive deal ID for a lead."""
+    with get_session() as s:
+        lead = s.get(Lead, lead_id)
+        if lead:
+            lead.pipedrive_deal_id = deal_id
+            s.commit()
+
+
+def get_guest_scan_count_last_24h(email: str) -> int:
+    """
+    Count how many free-scan leads were created for this email in the last 24 hours.
+    Used as a DB-level rate-limit fallback when Redis is unavailable.
+    """
+    from datetime import timedelta
+
+    cutoff = datetime.now(UTC) - timedelta(hours=24)
+    with get_session() as s:
+        count = s.execute(
+            select(func.count())
+            .select_from(Lead)
+            .where(Lead.email == email.lower().strip())
+            .where(Lead.source == "free_scan")
+            .where(Lead.created_at >= cutoff)
+        ).scalar_one()
+        return int(count or 0)
+
+
+def check_guest_scan_rate_limit(email: str) -> bool:
+    """
+    Return True when the email is allowed to run a guest scan (not rate-limited).
+
+    Strategy:
+    1. Try Redis first — key ``guest_scan:<email>`` with a 24-hour TTL.
+       If the key already exists the quota is exhausted → return False.
+       On first call the key is created and the limit window starts.
+    2. Fall back to a DB count when Redis is unavailable.
+
+    Rate: 1 scan per email per 24 hours.
+    """
+    import os
+
+    redis_url = os.getenv("SEC_SCANNER_REDIS_URL", "").strip()
+    if redis_url:
+        try:
+            import redis as _redis
+
+            r = _redis.from_url(redis_url, decode_responses=True)
+            key = f"guest_scan:{email.lower().strip()}"
+            # SETNX-style: SET key 1 NX EX 86400
+            result = r.set(key, "1", nx=True, ex=86400)
+            # result is True  → key was newly set   → first scan, allowed
+            # result is None  → key already existed → already scanned, blocked
+            return result is True
+        except Exception:
+            pass
+
+    # Redis unavailable — use DB count
+    return get_guest_scan_count_last_24h(email) == 0
+
+
+def get_financial_metrics() -> dict[str, Any]:
+    """
+    Calculate financial metrics for the current and previous month.
+
+    Returns MRR (subscription revenue), digital product revenue, subscriber counts,
+    churn rate, and progress toward revenue targets.
+    """
+    from sqlalchemy import distinct as sa_distinct
+
+    now = datetime.now(UTC)
+    current_month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
+    if now.month == 1:
+        prev_month_start = datetime(now.year - 1, 12, 1, tzinfo=UTC)
+    else:
+        prev_month_start = datetime(now.year, now.month - 1, 1, tzinfo=UTC)
+
+    with get_session() as s:
+        # MRR: subscription payments this month (exclude free plan and digital products)
+        mrr = float(
+            s.scalar(
+                select(func.coalesce(func.sum(Payment.amount), 0.0))
+                .where(Payment.status == "succeeded")
+                .where(Payment.created_at >= current_month_start)
+                .where(Payment.currency == "RUB")
+                .where(Payment.plan_code.isnot(None))
+                .where(Payment.plan_code != "free")
+                .where(~Payment.plan_code.like("digital_%"))
+            )
+            or 0.0
+        )
+
+        # Digital product revenue this month (RUB only)
+        digital_revenue = float(
+            s.scalar(
+                select(func.coalesce(func.sum(DigitalOrder.amount), 0.0))
+                .where(DigitalOrder.payment_status == "paid")
+                .where(DigitalOrder.paid_at >= current_month_start)
+                .where(DigitalOrder.currency == "RUB")
+            )
+            or 0.0
+        )
+
+        # Active unique subscribers this month (orgs with at least one succeeded subscription payment)
+        active_subscribers = int(
+            s.scalar(
+                select(func.count(sa_distinct(Payment.org_id)))
+                .where(Payment.status == "succeeded")
+                .where(Payment.created_at >= current_month_start)
+                .where(Payment.plan_code.isnot(None))
+                .where(Payment.plan_code != "free")
+                .where(~Payment.plan_code.like("digital_%"))
+            )
+            or 0
+        )
+
+        # New subscribers: orgs whose very first succeeded payment is this month
+        first_payment_subq = (
+            select(
+                Payment.org_id,
+                func.min(Payment.created_at).label("first_payment"),
+            )
+            .where(Payment.status == "succeeded")
+            .where(Payment.plan_code.isnot(None))
+            .where(Payment.plan_code != "free")
+            .where(~Payment.plan_code.like("digital_%"))
+            .group_by(Payment.org_id)
+            .subquery()
+        )
+        new_subscribers = int(
+            s.scalar(
+                select(func.count())
+                .select_from(first_payment_subq)
+                .where(first_payment_subq.c.first_payment >= current_month_start)
+            )
+            or 0
+        )
+
+        # Churn: orgs that paid last month but have no payment this month
+        paid_last_month_ids: set[int] = set(
+            s.scalars(
+                select(sa_distinct(Payment.org_id))
+                .where(Payment.status == "succeeded")
+                .where(Payment.created_at >= prev_month_start)
+                .where(Payment.created_at < current_month_start)
+                .where(Payment.plan_code.isnot(None))
+                .where(Payment.plan_code != "free")
+            ).all()
+        )
+        paid_this_month_ids: set[int] = set(
+            s.scalars(
+                select(sa_distinct(Payment.org_id))
+                .where(Payment.status == "succeeded")
+                .where(Payment.created_at >= current_month_start)
+                .where(Payment.plan_code.isnot(None))
+                .where(Payment.plan_code != "free")
+            ).all()
+        )
+        churned_count = len(paid_last_month_ids - paid_this_month_ids)
+        churn_rate = (
+            round(churned_count / len(paid_last_month_ids) * 100.0, 2)
+            if paid_last_month_ids
+            else 0.0
+        )
+
+        # Digital orders count this month
+        digital_orders_count = int(
+            s.scalar(
+                select(func.count())
+                .select_from(DigitalOrder)
+                .where(DigitalOrder.payment_status == "paid")
+                .where(DigitalOrder.paid_at >= current_month_start)
+            )
+            or 0
+        )
+
+    mrr_target = 500_000.0
+    total_revenue = mrr + digital_revenue
+
+    return {
+        "period": current_month_start.strftime("%Y-%m"),
+        "mrr_rub": round(mrr, 2),
+        "digital_revenue_rub": round(digital_revenue, 2),
+        "total_revenue_rub": round(total_revenue, 2),
+        "active_subscribers": active_subscribers,
+        "new_subscribers_this_month": new_subscribers,
+        "churned_subscribers": churned_count,
+        "churn_rate_percent": churn_rate,
+        "digital_orders_count": digital_orders_count,
+        "targets": {
+            "mrr_target_rub": mrr_target,
+            "mrr_progress_percent": round(mrr / mrr_target * 100.0, 1) if mrr_target else 0.0,
+        },
+        "generated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+def get_digital_orders_by_email(email: str, limit: int = 50) -> list[dict[str, Any]]:
+    """Get all digital orders for a customer email."""
+    with get_session() as s:
+        orders = s.scalars(
+            select(DigitalOrder)
+            .filter(DigitalOrder.email == email)
+            .order_by(DigitalOrder.created_at.desc())
+            .limit(limit)
+        ).all()
+
+        return [
+            {
+                "order_id": o.order_id,
+                "product_type": o.product_type,
+                "product_name": o.product_name,
+                "amount": o.amount,
+                "payment_status": o.payment_status,
+                "delivery_status": o.delivery_status,
+                "created_at": o.created_at.isoformat() if o.created_at else None,
+            }
+            for o in orders
+        ]

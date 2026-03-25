@@ -3,6 +3,7 @@ API Keys router — API key management endpoints.
 """
 
 import logging
+import uuid
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -23,26 +24,25 @@ logger = logging.getLogger("sec_scanner")
 router = APIRouter(prefix="/api/v1", tags=["api-keys"])
 
 
-def _key_to_info(key_row: dict) -> ApiKeyInfo:
-    return ApiKeyInfo(
-        id=key_row["id"],
-        prefix=key_row["prefix"],
-        name=key_row.get("name", ""),
-        created_at=key_row["created_at"],
-        last_used_at=key_row.get("last_used_at"),
-        revoked_at=key_row.get("revoked_at"),
-    )
-
-
 @router.get("/api-keys", response_model=ApiKeyListResponse)
 def list_api_keys(request: Request):
     auth: AuthContext | None = getattr(request.state, "auth", None)
     if not auth or auth.api_key_id == "static":
         raise HTTPException(status_code=401, detail="API key required")
 
-    keys = db.list_api_keys_for_tenant(auth.tenant_id)
+    keys_data = db.get_api_keys_by_org(auth.tenant_id)
     return ApiKeyListResponse(
-        items=[_key_to_info(k) for k in keys],
+        keys=[
+            ApiKeyInfo(
+                id=k["id"],
+                name=k["name"],
+                prefix=k["prefix"],
+                last4=k["last4"],
+                is_admin=k["is_admin"],
+                created_at=k["created_at"],
+            )
+            for k in keys_data
+        ]
     )
 
 
@@ -56,32 +56,67 @@ def revoke_api_key(key_id: str, request: Request):
     if not success:
         raise HTTPException(status_code=404, detail="API key not found")
 
-    log_api_key_revoked(key_id, auth.tenant_id, auth.api_key_id)
-    return {"status": "revoked", "key_id": key_id}
+    log_api_key_revoked(
+        request=request,
+        api_key_id=key_id,
+        org_id=auth.tenant_id,
+    )
+    return {"detail": "API key revoked"}
 
 
 @router.post("/api-keys", response_model=ApiKeyCreateResponse)
 def create_api_key(req: ApiKeyCreateRequest, request: Request):
     auth: AuthContext | None = getattr(request.state, "auth", None)
-    if not auth or auth.api_key_id == "static":
+    if not auth:
         raise HTTPException(status_code=401, detail="API key required")
 
-    plain_key, hashed_key, prefix, last4 = generate_api_key()
+    org_id: int
 
-    db.create_api_key(
-        tenant_id=auth.tenant_id,
-        hashed_key=hashed_key,
+    if auth.api_key_id == "static" or auth.tenant_id is None or auth.tenant_id == 0:
+        plan_id = db.upsert_plan(
+            code="free",
+            name="Free",
+            requests_per_minute=None,
+            monthly_audits_quota=None,
+            concurrency_limit=None,
+        )
+        org_id = db.get_or_create_org(name="My Organization", plan_id=plan_id)
+        if req.referral_code:
+            db.register_referral(client_org_id=org_id, referral_code=req.referral_code)
+    else:
+        org_id = auth.tenant_id
+
+    org_info = db.get_org_by_id(org_id)
+    if not org_info:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    plain, hashed, prefix, last4 = generate_api_key()
+    api_key_id = str(uuid.uuid4())
+
+    db.insert_api_key(
+        api_key_id=api_key_id,
+        org_id=org_id,
+        name=req.key_name,
         prefix=prefix,
-        name=req.name or "",
+        last4=last4,
+        hashed_key=hashed,
+        is_admin=False,
     )
 
-    log_api_key_created(prefix, auth.tenant_id, auth.api_key_id)
+    log_api_key_created(
+        request=request,
+        api_key_id=api_key_id,
+        org_id=org_id,
+        key_name=req.key_name,
+        is_admin=False,
+    )
 
     return ApiKeyCreateResponse(
-        api_key=plain_key,
-        id=prefix,
-        name=req.name or "",
-        message="Store this key securely. It will not be shown again.",
+        api_key=plain,
+        api_key_id=api_key_id,
+        prefix=prefix,
+        last4=last4,
+        key_name=req.key_name,
     )
 
 
@@ -91,21 +126,42 @@ def admin_create_api_key(req: AdminApiKeyCreateRequest, request: Request):
     if not auth or not auth.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    plain_key, hashed_key, prefix, last4 = generate_api_key()
+    plan_id = db.upsert_plan(
+        code=req.plan_code,
+        name=req.plan_name,
+        requests_per_minute=req.requests_per_minute,
+        monthly_audits_quota=req.monthly_audits_quota,
+        concurrency_limit=req.concurrency_limit,
+    )
+    org_id = db.get_or_create_org(name=req.org_name, plan_id=plan_id)
 
-    org_id = db.get_or_create_org(name=req.org_name, plan_id=req.plan_id)
+    plain, hashed, prefix, last4 = generate_api_key()
+    api_key_id = str(uuid.uuid4())
 
-    db.create_api_key(
-        tenant_id=org_id,
-        hashed_key=hashed_key,
+    db.insert_api_key(
+        api_key_id=api_key_id,
+        org_id=org_id,
+        name=req.key_name,
         prefix=prefix,
-        name=req.name or f"Key for {req.org_name}",
+        last4=last4,
+        hashed_key=hashed,
+        is_admin=req.is_admin,
+    )
+
+    log_api_key_created(
+        request=request,
+        api_key_id=api_key_id,
+        org_id=org_id,
+        key_name=req.key_name,
+        is_admin=req.is_admin,
     )
 
     return AdminApiKeyCreateResponse(
-        api_key=plain_key,
-        id=prefix,
-        name=req.name or f"Key for {req.org_name}",
+        api_key=plain,
+        api_key_id=api_key_id,
+        prefix=prefix,
+        last4=last4,
         org_id=org_id,
-        message="Store this key securely. It will not be shown again.",
+        org_name=req.org_name,
+        plan_code=req.plan_code,
     )

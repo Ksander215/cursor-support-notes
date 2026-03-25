@@ -37,5 +37,5 @@ def generate_referral_code_endpoint(request: Request):
     if not auth or auth.api_key_id == "static":
         raise HTTPException(status_code=401, detail="API key required")
 
-    code = db.generate_referral_code(auth.tenant_id)
-    return {"referral_code": code}
+    code = db.set_referral_code(auth.tenant_id)
+    return {"referral_code": code, "message": "Referral code generated successfully"}

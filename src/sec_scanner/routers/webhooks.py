@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 
 from .. import db
-from ..audit_log import AuditAction, log_event
+from ..audit_log import log_event
 from ..saas import AuthContext
 from ..schemas import (
     WebhookCreate,
@@ -27,8 +27,8 @@ def list_webhooks(request: Request):
     if not auth or auth.api_key_id == "static":
         raise HTTPException(status_code=401, detail="API key required")
 
-    webhooks = db.list_webhooks(auth.tenant_id)
-    return WebhookListResponse(items=webhooks)
+    webhooks = db.get_webhooks(org_id=auth.tenant_id)
+    return WebhookListResponse(items=webhooks, total=len(webhooks))
 
 
 @router.post("/webhooks", response_model=WebhookResponse)
@@ -38,18 +38,20 @@ def create_webhook(req: WebhookCreate, request: Request):
         raise HTTPException(status_code=401, detail="API key required")
 
     webhook = db.create_webhook(
-        tenant_id=auth.tenant_id,
+        org_id=auth.tenant_id,
         url=req.url,
         events=[e.value if hasattr(e, "value") else e for e in req.events],
-        name=req.name or "",
         secret=req.secret,
+        enabled=req.enabled,
     )
 
     log_event(
-        action=AuditAction.WEBHOOK_CREATED,
-        tenant_id=auth.tenant_id,
-        api_key_id=auth.api_key_id,
-        details={"webhook_id": webhook["id"], "url": req.url},
+        request=request,
+        action="webhook.created",
+        resource_type="webhook",
+        resource_id=str(webhook["id"]),
+        org_id=auth.tenant_id,
+        details={"url": req.url},
     )
 
     return WebhookResponse(**webhook)
@@ -61,7 +63,7 @@ def get_webhook(webhook_id: int, request: Request):
     if not auth or auth.api_key_id == "static":
         raise HTTPException(status_code=401, detail="API key required")
 
-    webhook = db.get_webhook(webhook_id, auth.tenant_id)
+    webhook = db.get_webhook_by_id(webhook_id=webhook_id, org_id=auth.tenant_id)
     if not webhook:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
@@ -78,18 +80,17 @@ def update_webhook(
     if not auth or auth.api_key_id == "static":
         raise HTTPException(status_code=401, detail="API key required")
 
-    webhook = db.get_webhook(webhook_id, auth.tenant_id)
+    webhook = db.get_webhook_by_id(webhook_id=webhook_id, org_id=auth.tenant_id)
     if not webhook:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
     updated = db.update_webhook(
         webhook_id=webhook_id,
-        tenant_id=auth.tenant_id,
+        org_id=auth.tenant_id,
         url=req.url,
         events=[e.value if hasattr(e, "value") else e for e in req.events]
         if req.events is not None
         else None,
-        name=req.name,
         secret=req.secret,
         enabled=req.enabled,
     )
@@ -103,8 +104,8 @@ def delete_webhook(webhook_id: int, request: Request):
     if not auth or auth.api_key_id == "static":
         raise HTTPException(status_code=401, detail="API key required")
 
-    success = db.delete_webhook(webhook_id, auth.tenant_id)
+    success = db.delete_webhook(webhook_id=webhook_id, org_id=auth.tenant_id)
     if not success:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
-    return {"status": "deleted"}
+    return {"detail": "Webhook deleted"}

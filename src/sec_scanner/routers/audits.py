@@ -81,38 +81,35 @@ def create_audit(req: AuditCreateRequest, request: Request):
 @router.get("/audits", response_model=AuditListResponse)
 def list_audits(
     request: Request,
-    limit: int = Query(50, ge=1, le=500),
-    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    include_total: bool = Query(False),
     status: str | None = None,
-    sort_by: str = "created_at",
-    sort_order: str = "desc",
+    target: str | None = None,
+    mode: str | None = None,
+    sort: str = Query("created_at"),
+    order: str = Query("desc"),
 ):
     auth: AuthContext | None = getattr(request.state, "auth", None)
+    tenant_id = (
+        auth.tenant_id if auth and (auth.api_key_id != "static") and (not auth.is_admin) else None
+    )
 
-    if auth and auth.api_key_id != "static":
-        items, total = db.list_audits(
-            tenant_id=auth.tenant_id,
-            limit=limit,
-            offset=offset,
-            status=status,
-            sort_by=sort_by,
-            sort_order=sort_order,
-        )
-    else:
-        items, total = db.list_audits(
-            tenant_id=None,
-            limit=limit,
-            offset=offset,
-            status=status,
-            sort_by=sort_by,
-            sort_order=sort_order,
-        )
+    items_list, has_more, total = db.list_audits(
+        limit=limit,
+        tenant_id=tenant_id,
+        include_total=include_total,
+        status=status,
+        target=target,
+        mode=mode,
+        sort=sort,
+        order=order,
+    )
 
     return AuditListResponse(
-        items=[_row_to_summary(r) for r in items],
-        total=total,
+        items=[_row_to_summary(r) for r in items_list],
         limit=limit,
-        offset=offset,
+        has_more=has_more,
+        total=total,
     )
 
 
@@ -179,16 +176,33 @@ def get_audit_report(audit_id: str, request: Request):
 def export_audit(
     audit_id: str,
     request: Request,
-    format: str = Query("json", pattern="^(json|markdown|pdf)$"),
+    format: str = Query("markdown", pattern="^(pdf|json|markdown)$"),
 ):
+    from fastapi import Response
+
     auth: AuthContext | None = getattr(request.state, "auth", None)
     row = db.get_audit(audit_id)
     if not row:
         raise HTTPException(status_code=404, detail="Audit not found")
 
-    if auth and auth.api_key_id != "static":
+    if auth and auth.api_key_id != "static" and not auth.is_admin:
         if row.get("tenant_id") and row.get("tenant_id") != auth.tenant_id:
             raise HTTPException(status_code=403, detail="Access denied")
+
+    if row.get("status") != "completed":
+        raise HTTPException(status_code=400, detail="Audit not completed yet")
+
+    result_data = None
+    if row.get("result_json") and isinstance(row.get("result_json"), dict):
+        result_data = row["result_json"]
+
+    report_md = row.get("report_md")
+
+    white_label_config = None
+    if auth and auth.tenant_id:
+        org_info = db.get_org_by_id(auth.tenant_id)
+        if org_info and org_info.get("white_label_config"):
+            white_label_config = org_info["white_label_config"]
 
     export_format = ExportFormat.JSON
     if format == "markdown":
@@ -197,9 +211,25 @@ def export_audit(
         export_format = ExportFormat.PDF
 
     try:
-        return export_audit_report(row, export_format)
+        content_bytes, content_type = export_audit_report(
+            audit_data=row,
+            result_data=result_data,
+            report_md=report_md,
+            format=export_format,
+            white_label_config=white_label_config,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    target = row.get("target", "audit").replace(".", "_").replace("/", "_")
+    extension = format.lower()
+    filename = f"security_audit_{target}_{audit_id[:8]}.{extension}"
+
+    return Response(
+        content=content_bytes,
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/targets/{target}/history", response_model=AuditHistoryResponse)
@@ -258,7 +288,7 @@ def get_quota(request: Request):
     if not auth or auth.api_key_id == "static":
         raise HTTPException(status_code=401, detail="API key required")
 
-    quota = db.get_quota_info(auth.tenant_id)
+    quota = db.get_quota_info(tenant_id=auth.tenant_id)
 
     return QuotaResponse(
         org_id=auth.org_id,
@@ -278,13 +308,12 @@ def get_quota(request: Request):
     )
 
 
-def _check_fail_conditions(
+def _check_quota_limits(
     mode: str,
     tenant_id: int | None,
-    created_by_api_key_id: str | None,
     target: str,
 ) -> None:
-    """Check fail conditions for audit creation."""
+    """Check quota limits for audit creation."""
     if mode not in ("safe", "fast", "full"):
         raise HTTPException(status_code=400, detail="Invalid scan mode")
 
@@ -294,10 +323,7 @@ def _check_fail_conditions(
     if tenant_id is None:
         return
 
-    def fetch():
-        return db.get_quota_info(tenant_id)
-
-    quota = get_cached_audit_history(tenant_id, None, 1, fetch)
+    quota = db.get_quota_info(tenant_id=tenant_id)
     if not quota:
         return
 
@@ -307,7 +333,7 @@ def _check_fail_conditions(
             detail="Monthly audit quota exceeded. Upgrade your plan for more audits.",
         )
 
-    active_audits = db.count_running_audits(tenant_id)
+    active_audits = db.count_running_audits(tenant_id=tenant_id)
     concurrency_limit = quota.get("concurrency_limit") or 1
     if active_audits >= concurrency_limit:
         raise HTTPException(
@@ -317,8 +343,61 @@ def _check_fail_conditions(
         )
 
 
+def _check_ci_fail_conditions(
+    audit_result: dict[str, Any], fail_on: list[str]
+) -> tuple[bool, str | None]:
+    """Check if audit result should fail CI/CD based on fail_on rules."""
+    if not fail_on:
+        return False, None
+
+    overall_score = audit_result.get("overall_score")
+    risk_level = audit_result.get("risk_level", "").upper()
+    critical_issues = audit_result.get("critical_issues", [])
+    critical_issues_count = len(critical_issues) if isinstance(critical_issues, list) else 0
+
+    for rule in fail_on:
+        rule_lower = rule.lower().strip()
+
+        if rule_lower.startswith("score"):
+            try:
+                if "<=" in rule_lower:
+                    threshold = float(rule_lower.split("<=")[1].strip())
+                    if overall_score is not None and overall_score <= threshold:
+                        return (
+                            True,
+                            f"Security score {overall_score:.1f} is below threshold {threshold}",
+                        )
+                elif "<" in rule_lower:
+                    threshold = float(rule_lower.split("<")[1].strip())
+                    if overall_score is not None and overall_score < threshold:
+                        return (
+                            True,
+                            f"Security score {overall_score:.1f} is below threshold {threshold}",
+                        )
+            except (ValueError, IndexError):
+                logger.warning("Invalid score threshold rule: %s", rule)
+                continue
+
+        elif rule_lower == "critical":
+            if risk_level == "CRITICAL" or critical_issues_count > 0:
+                return (
+                    True,
+                    f"Critical risk level detected (risk_level={risk_level}, critical_issues={critical_issues_count})",
+                )
+        elif rule_lower == "high":
+            if risk_level in ["CRITICAL", "HIGH"]:
+                return True, f"High or critical risk level detected (risk_level={risk_level})"
+        elif rule_lower == "medium":
+            if risk_level in ["CRITICAL", "HIGH", "MEDIUM"]:
+                return True, f"Medium or higher risk level detected (risk_level={risk_level})"
+
+    return False, None
+
+
 @router.post("/ci/scan", response_model=CIScanResponse)
 def ci_scan(req: CIScanRequest, request: Request):
+    import time
+
     auth: AuthContext | None = getattr(request.state, "auth", None)
     tenant_id: int | None = None
     created_by_api_key_id: str | None = None
@@ -326,7 +405,7 @@ def ci_scan(req: CIScanRequest, request: Request):
         tenant_id = auth.tenant_id
         created_by_api_key_id = auth.api_key_id
 
-    _check_fail_conditions(req.mode, tenant_id, created_by_api_key_id, req.target)
+    _check_quota_limits(req.mode, tenant_id, req.target)
 
     try:
         normalize_target(req.target)
@@ -341,8 +420,69 @@ def ci_scan(req: CIScanRequest, request: Request):
     )
     invalidate_on_new_audit(tenant_id)
 
+    if not req.wait:
+        return CIScanResponse(
+            audit_id=audit_id,
+            status="queued",
+            passed=True,
+            report_url=f"/app/audits?id={audit_id}",
+        )
+
+    timeout = req.timeout or 300
+    start_time = time.time()
+    poll_interval = 2
+
+    while time.time() - start_time < timeout:
+        audit_row = db.get_audit(audit_id)
+        if not audit_row:
+            raise HTTPException(status_code=404, detail="Audit not found")
+
+        status = audit_row.get("status")
+        if status == "completed":
+            audit_details = db.get_audit(audit_id)
+            if not audit_details:
+                raise HTTPException(status_code=404, detail="Audit not found")
+
+            result_json = audit_details.get("result_json")
+            if not result_json or not isinstance(result_json, dict):
+                return CIScanResponse(
+                    audit_id=audit_id,
+                    status="completed",
+                    passed=True,
+                    overall_score=audit_details.get("overall_score"),
+                    risk_level=audit_details.get("risk_level"),
+                    report_url=f"/app/audits?id={audit_id}",
+                )
+
+            should_fail, reason = _check_ci_fail_conditions(result_json, req.fail_on or [])
+            critical_issues = result_json.get("critical_issues", [])
+            critical_issues_count = len(critical_issues) if isinstance(critical_issues, list) else 0
+
+            return CIScanResponse(
+                audit_id=audit_id,
+                status="completed",
+                passed=not should_fail,
+                overall_score=result_json.get("overall_score"),
+                risk_level=result_json.get("risk_level"),
+                critical_issues_count=critical_issues_count,
+                failure_reason=reason,
+                report_url=f"/app/audits?id={audit_id}",
+            )
+        elif status == "failed":
+            return CIScanResponse(
+                audit_id=audit_id,
+                status="failed",
+                passed=False,
+                failure_reason=audit_row.get("error") or "Scan failed",
+                report_url=f"/app/audits?id={audit_id}",
+            )
+
+        time.sleep(poll_interval)
+
     return CIScanResponse(
         audit_id=audit_id,
-        status="queued",
-        message="Audit queued. Poll /audits/{audit_id}/progress for status.",
+        status="running",
+        passed=False,
+        failure_reason=f"Scan timeout after {timeout} seconds",
+        report_url=f"/app/audits?id={audit_id}",
     )

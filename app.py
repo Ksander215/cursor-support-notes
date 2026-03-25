@@ -19,6 +19,7 @@ from src.sec_scanner.api_payments import router as payments_router
 from src.sec_scanner.api_stripe import router as stripe_router
 from src.sec_scanner.logging_config import set_request_id, setup_structured_logging
 from src.sec_scanner.routers import (
+    admin_router,
     audits_router,
     config_router,
     keys_router,
@@ -177,6 +178,7 @@ app.include_router(webhooks_router)
 app.include_router(referrals_router)
 app.include_router(leads_router)
 app.include_router(config_router)
+app.include_router(admin_router)
 
 # attach Stripe API (payment processing) - legacy, kept for backward compatibility
 app.include_router(stripe_router)
