@@ -1,0 +1,104 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "gitlab": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-gitlab"
+      ],
+      "env": {
+        "GITLAB_TOKEN": "${GITLAB_TOKEN}"
+      }
+    },
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres"
+      ],
+      "env": {
+        "POSTGRES_CONNECTION_STRING": "postgresql://sec_scanner:sec_scanner@localhost:5432/sec_scanner"
+      }
+    },
+    "redis": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-redis"
+      ],
+      "env": {
+        "REDIS_URL": "redis://localhost:6379/0"
+      }
+    },
+    "docker": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-docker"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "wsl",
+      "args": [
+        "-d",
+        "Ubuntu",
+        "--",
+        "/bin/bash",
+        "-c",
+        "export PATH=/home/alex/.nvm/versions/node/v21.7.3/bin:/usr/local/bin:/usr/bin:/bin && node /home/alex/.local/bin/mcp-json-filter.js npx -y @modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {
+        "DISABLE_THOUGHT_LOGGING": "false",
+        "WSLENV": "DISABLE_THOUGHT_LOGGING"
+      }
+    },
+    "context7": {
+      "command": "wsl",
+      "args": [
+        "-d",
+        "Ubuntu",
+        "--",
+        "/bin/bash",
+        "-c",
+        "export PATH=/home/alex/.nvm/versions/node/v21.7.3/bin:/usr/local/bin:/usr/bin:/bin && node /home/alex/.local/bin/mcp-json-filter.js npx -y @upstash/context7-mcp@latest"
+      ]
+    },
+    "playwright": {
+      "command": "wsl",
+      "args": [
+        "-d",
+        "Ubuntu",
+        "--",
+        "/bin/bash",
+        "-c",
+        "export PATH=/home/alex/.nvm/versions/node/v21.7.3/bin:/usr/local/bin:/usr/bin:/bin && node /home/alex/.local/bin/mcp-json-filter.js npx -y @playwright/mcp@latest"
+      ]
+    },
+    "n8n-mcp": {
+      "command": "wsl",
+      "args": [
+        "-d",
+        "Ubuntu",
+        "--",
+        "/bin/bash",
+        "-c",
+        "export PATH=/home/alex/.nvm/versions/node/v21.7.3/bin:/usr/local/bin:/usr/bin:/bin && WEBHOOK_SECURITY_MODE=moderate MCP_MODE=stdio LOG_LEVEL=error DISABLE_CONSOLE_OUTPUT=true node /home/alex/.local/bin/mcp-json-filter.js n8n-mcp"
+      ],
+      "env": {
+        "N8N_API_URL": "https://n8n.sec-scanner.pro/api/v1",
+        "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0YWExNmQ2My02ZWNjLTRlNmYtYjg2NS0yZWRhOGVmY2ExNzIiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZDJlYmJjMTUtOTdjOS00NWMwLWJjOWUtN2IzZjM3MWU2NmU0IiwiaWF0IjoxNzc0NTE5OTgwLCJleHAiOjE3NzcwNjQ0MDB9.OIJLQpIXyyF4KXc9dDw1aeE1ep55tDE99c2ZOEJI5Xc",
+        "WSLENV": "N8N_API_URL/u:N8N_API_KEY/u"
+      }
+    }
+  }
+}
