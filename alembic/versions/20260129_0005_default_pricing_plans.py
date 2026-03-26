@@ -31,7 +31,7 @@ def upgrade() -> None:
     connection.execute(
         text("""
         INSERT INTO plans (code, name, requests_per_minute, monthly_audits_quota, concurrency_limit, created_at)
-        VALUES ('free', 'Free', 10, 10, 1, NOW())
+        VALUES ('free', 'Free', 10, 10, 1, CURRENT_TIMESTAMP)
         ON CONFLICT (code) DO UPDATE SET
             name = EXCLUDED.name,
             requests_per_minute = EXCLUDED.requests_per_minute,
@@ -44,7 +44,7 @@ def upgrade() -> None:
     connection.execute(
         text("""
         INSERT INTO plans (code, name, requests_per_minute, monthly_audits_quota, concurrency_limit, created_at)
-        VALUES ('starter', 'Starter', 60, 100, 3, NOW())
+        VALUES ('starter', 'Starter', 60, 100, 3, CURRENT_TIMESTAMP)
         ON CONFLICT (code) DO UPDATE SET
             name = EXCLUDED.name,
             requests_per_minute = EXCLUDED.requests_per_minute,
@@ -57,7 +57,7 @@ def upgrade() -> None:
     connection.execute(
         text("""
         INSERT INTO plans (code, name, requests_per_minute, monthly_audits_quota, concurrency_limit, created_at)
-        VALUES ('professional', 'Professional', 120, 500, 10, NOW())
+        VALUES ('professional', 'Professional', 120, 500, 10, CURRENT_TIMESTAMP)
         ON CONFLICT (code) DO UPDATE SET
             name = EXCLUDED.name,
             requests_per_minute = EXCLUDED.requests_per_minute,
@@ -70,7 +70,7 @@ def upgrade() -> None:
     connection.execute(
         text("""
         INSERT INTO plans (code, name, requests_per_minute, monthly_audits_quota, concurrency_limit, created_at)
-        VALUES ('enterprise', 'Enterprise', NULL, NULL, NULL, NOW())
+        VALUES ('enterprise', 'Enterprise', NULL, NULL, NULL, CURRENT_TIMESTAMP)
         ON CONFLICT (code) DO UPDATE SET
             name = EXCLUDED.name,
             requests_per_minute = EXCLUDED.requests_per_minute,
