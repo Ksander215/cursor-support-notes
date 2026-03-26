@@ -162,6 +162,9 @@ def _path_requires_auth(path: str) -> bool:
     if not path:
         return False
     if path.startswith("/api/v1"):
+        # Exempt n8n webhooks - they use internal API key or no auth
+        if "/leads/webhook/n8n/" in path:
+            return False
         return True
     if "/webhook" in path:
         return False  # Stripe/YooKassa webhooks use signature, not API key
