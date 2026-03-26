@@ -76,14 +76,12 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
   <script type="module" is:inline>
     import { makeClient, AuditProgressWebSocket } from "/src/lib/api.ts";
     import { getApiBaseUrl, getApiKey } from "/src/lib/storage.ts";
-    import { renderTimeline, showTimelineLoading } from "/src/components/TimelineChart.astro";
-    import { renderVulnerabilityChart, showVulnerabilityLoading } from "/src/components/VulnerabilityChart.astro";
-    import { renderScoreBreakdown, showScoreBreakdownLoading } from "/src/components/ScoreBreakdown.astro";
-    import { renderProgress, showProgressLoading } from "/src/components/ProgressIndicator.astro";
+    import { renderTimeline, showTimelineLoading, renderVulnerabilityChart, showVulnerabilityLoading, renderScoreBreakdown, showScoreBreakdownLoading } from "/src/lib/charts.ts";
+    import { renderProgress, showProgressLoading } from "/src/lib/progress.ts";
     import { skeletonAuditList, skeletonDetail } from "/src/lib/skeleton.ts";
     import { escapeHtml } from "/src/lib/sanitize.ts";
 
-    const DEFAULT_API_BASE = (import.meta.env.PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+    const DEFAULT_API_BASE = ((import.meta?.env?.PUBLIC_API_BASE_URL) || "https://api.sec-scanner.pro").replace(/\/+$/, "");
 
     const elApiBaseLabel = document.getElementById("apiBaseLabel");
     const elList = document.getElementById("list");
@@ -103,14 +101,14 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     const elExportJsonBtn = document.getElementById("exportJsonBtn");
     const elExportMarkdownBtn = document.getElementById("exportMarkdownBtn");
 
-    let progressPollInterval: number | null = null;
-    let progressWebSocket: AuditProgressWebSocket | null = null;
-    let currentProgressSteps: any[] = []; // Track steps for WebSocket updates
+    let progressPollInterval = null;
+    let progressWebSocket = null;
+    let currentProgressSteps = []; // Track steps for WebSocket updates
 
     function setEmpty(isEmpty) {
       const box = document.getElementById("emptyBox");
-      if (!box) return;
-      box.style.display = isEmpty ? "block" : "none";
+      if (box) box.style.display = isEmpty ? "block" : "none";
+      if (elList) elList.style.display = isEmpty ? "none" : "";
     }
 
     function currentApiBase() {
@@ -121,6 +119,11 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
     }
     function client() {
       return makeClient(currentApiBase());
+    }
+
+    // Auth guard - redirect to settings if no API key
+    if (!currentApiKey()) {
+      window.location.href = "/app/settings";
     }
 
     // escapeHtml is now imported from /src/lib/sanitize.ts
@@ -363,7 +366,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
           step_progress: data.step_progress,
           step_message: data.message,
         };
-        
+
         if (stepIndex >= 0) {
           currentProgressSteps[stepIndex] = { ...currentProgressSteps[stepIndex], ...updatedStep };
         } else {
@@ -380,7 +383,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
         // Scan completed
         console.log("[Progress] Scan complete:", data.status, "score:", data.score);
         stopProgressPolling();
-        
+
         // Reload detail to show final state
         setTimeout(() => {
           const id = selectedId();
@@ -412,7 +415,7 @@ import ProgressIndicator from "../../components/ProgressIndicator.astro";
         );
         progressWebSocket.connect();
         console.log("[Progress] Using WebSocket for real-time updates");
-        
+
         // Also load initial state via REST (WebSocket may take a moment)
         loadProgress(auditId);
       } catch (e) {

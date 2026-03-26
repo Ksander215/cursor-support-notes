@@ -7,10 +7,12 @@ import Input from "../../components/ui/Input.astro";
 
 <AppShell title="Settings · sec-scanner.pro" description="Local client settings" active="settings">
   <Card class="section">
-    <h1 class="h2">Settings</h1>
-    <p class="muted" style="margin: var(--space-2) 0 0;">
-      Stored locally in your browser. Do not paste secrets into chat.
-    </p>
+    <div style="margin-bottom: var(--space-4);">
+      <h1 class="h2">Настройки</h1>
+      <p class="muted" style="margin: var(--space-2) 0 0;">
+        Сохраняются локально в браузере. Не вставляйте секреты в чат.
+      </p>
+    </div>
 
     <div style="margin-top: var(--space-4); display:grid; gap: 10px;">
       <div class="field">
@@ -160,7 +162,7 @@ import Input from "../../components/ui/Input.astro";
     import { getEffects, setEffects } from "/src/lib/effects.ts";
     import { makeClient } from "/src/lib/api.ts";
 
-    const DEFAULT_API_BASE = ((import.meta?.env?.PUBLIC_API_BASE_URL) || "http://localhost:8000").replace(/\/+$/, "");
+    const DEFAULT_API_BASE = ((import.meta?.env?.PUBLIC_API_BASE_URL) || "https://api.sec-scanner.pro").replace(/\/+$/, "");
 
     function showToast(message, isError = false) {
       const existing = document.getElementById("settings-toast");
