@@ -1,0 +1,121 @@
+services:
+  n8n-db:
+    image: postgres:15-alpine
+    container_name: n8n-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=n8n
+      - POSTGRES_USER=n8n
+      - POSTGRES_PASSWORD=${N8N_DB_PASSWORD:-n8n_secure_password}
+    volumes:
+      - n8n-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"  # Только localhost, доступ через Nginx
+    depends_on:
+      n8n-db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Базовые настройки
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-}
+      - N8N_HOST=${N8N_HOST:-n8n.sec-scanner.pro}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+
+      # URL для доступа через прокси (Nginx)
+      - N8N_EDITOR_BASE_URL=https://n8n.sec-scanner.pro/
+
+      # Webhook URL для внешних триггеров
+      - WEBHOOK_URL=https://n8n.sec-scanner.pro/
+
+      # Временная зона
+      - GENERIC_TIMEZONE=Europe/Moscow
+
+      # Безопасность
+      - N8N_SECURE_COOKIE=true
+
+      # Отключить проверку Origin (так как запросы идут через Nginx)
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
+
+      # Отключить проверку Origin для WebSocket
+      - N8N_DISABLE_PRODUCTION_MAIN_PROCESS=false
+
+      # Telegram Content Publisher
+      # Значения берутся из env_file (.env.production) — не дублировать здесь через ${VAR},
+      # иначе пустая переменная в shell перекроет значение из файла.
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID:-@sec_scanner_pro}
+
+      # VPS SSH Agent (Webhook /webhook/vps-agent)
+      - VPS_HOST=${VPS_HOST:-85.239.38.163}
+      - VPS_SSH_USER=${VPS_SSH_USER:-root}
+      - VPS_SSH_PRIVATE_KEY=${VPS_SSH_PRIVATE_KEY:-}
+      - VPS_SSH_PORT=${VPS_SSH_PORT:-22}
+
+      # Опционально: отправка email уведомлений
+      # - N8N_EMAIL_MODE=smtp
+      # - N8N_SMTP_HOST=smtp.example.com
+      # - N8N_SMTP_PORT=587
+      # - N8N_SMTP_USER=user@example.com
+      # - N8N_SMTP_PASS=password
+
+      # Опционально: база данных (по умолчанию SQLite, для production лучше PostgreSQL)
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=n8n-db
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD=${N8N_DB_PASSWORD:-n8n_secure_password}
+
+    volumes:
+      - /opt/n8n:/home/node/.n8n
+      # Монтируем промпты из репозитория (опционально)
+      - ./n8n/workflows/prompts:/home/node/.n8n/prompts:ro
+    networks:
+      - data
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  data:
+    external: true  # Используем существующую сеть из docker-compose.prod.yml
+
+volumes:
+  n8n-db-data:
