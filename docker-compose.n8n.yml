@@ -66,6 +66,7 @@ services:
       # иначе пустая переменная в shell перекроет значение из файла.
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID:-@sec_scanner_pro}
+      - TELEGRAM_ADMIN_CHAT_ID=${TELEGRAM_ADMIN_CHAT_ID:-280851345}
 
       # VPS SSH Agent (Webhook /webhook/vps-agent)
       - VPS_HOST=${VPS_HOST:-85.239.38.163}
