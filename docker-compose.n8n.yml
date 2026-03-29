@@ -64,7 +64,7 @@ services:
       # Telegram Content Publisher
       # Значения берутся из env_file (.env.production) — не дублировать здесь через ${VAR},
       # иначе пустая переменная в shell перекроет значение из файла.
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_BOT_TOKEN=8769790466:AAGb4WBh5v_J0WRIGyCMIVmWrzifyr8aPVU
       - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID:-@sec_scanner_pro}
       - TELEGRAM_ADMIN_CHAT_ID=${TELEGRAM_ADMIN_CHAT_ID:-280851345}
 
