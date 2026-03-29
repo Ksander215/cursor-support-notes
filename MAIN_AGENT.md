@@ -30,14 +30,17 @@
 
 ## Сейчас в работе
 
-- **Задача:** Phase 3: Telegram Bot + CRM + YooKassa
+- **Задача:** Lead Scoring workflows — завершено
 - **Ведущий:** OpenCode
-- **Ветка / PR:** main
+- **Ветка / PR:** main (commit d0356d5)
 
 ---
 
 ## Последние решения
 
+- **29.03.2026** — n8n workflows импортированы: Payment Processor Agent (ID: 2GZcbIjIJpemBEvU), Content Marketing Publisher (ID: upGrgHOtTeDUooqv)
+- **29.03.2026** — Telegram credential создан (ID: YwNoa4WrBHZIsLsu), переменные окружения настроены
+- **29.03.2026** — Новый n8n API key, docker-compose.n8n.yml обновлён
 - **26.03.2026** — Telegram Bot настроен: токен добавлен в .env, Chat ID получен (280851345), бот отправляет тестовые сообщения
 - **26.03.2026** — Phase 2 завершён: n8n с PostgreSQL, 25 воркфлоу импортированы (17 активны)
 - **25.03.2026** — GitHub remote подключён, коммит с docker-compose.n8n.yml
@@ -46,8 +49,8 @@
 
 ## Следующие шаги
 
-1. Активировать Telegram Content Publisher воркфлоу в n8n UI
-2. Подождать оформления ИП для YooKassa
+1. Оформление ИП → подключение YooKassa → webhook на `/webhook/yookassa-payment`
+2. Активировать лид-магнит и воронку продаж после ИП
 3. Создать Supabase проект для CRM (после создания — настроить подключение)
 
 ---
