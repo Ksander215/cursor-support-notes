@@ -62,6 +62,16 @@
 
 ---
 
+## SSH Access
+
+```
+ssh -p 22222 root@85.239.38.163
+```
+
+Details: [`docs/SERVER_SSH_ACCESS.md`](docs/SERVER_SSH_ACCESS.md)
+
+---
+
 ## Где искать отчёты по завершённым крупным задачам
 
 - `docs/REPORT_*` или `docs/*_SETUP.md`
