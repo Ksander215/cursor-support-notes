@@ -1,0 +1,67 @@
+{
+  "timestamp": "2026-04-08T20:31:09.159711",
+  "total_steps": 4,
+  "success": 4,
+  "failed": 0,
+  "total_duration_sec": 0.21,
+  "steps": [
+    {
+      "step": "outbound_checklist_automation",
+      "status": "success",
+      "duration_sec": 0.07,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "hybrid_tracking_sync",
+      "status": "success",
+      "duration_sec": 0.04,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "followup_scheduler",
+      "status": "success",
+      "duration_sec": 0.06,
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "step": "revenue_kpi_report",
+      "status": "success",
+      "duration_sec": 0.04,
+      "exit_code": 0,
+      "error": null
+    }
+  ],
+  "cash_mode": {
+    "bottleneck": "pipeline_gap_proposals",
+    "reason": "8 qualified лид(а), но 0 proposals — разрыв между qual и КП",
+    "actions": [
+      "Срочно отправить КП всем warm/qualified лидам сегодня.",
+      "Проверить есть ли контакт для follow-up по каждому qualified.",
+      "Подготовить шаблон КП для быстрой отправки."
+    ],
+    "targets": [
+      "Вывести минимум 2 из 8 qualified в proposal сегодня.",
+      "Получить ответ по каждому отправленному КП в течение 48 часов."
+    ]
+  },
+  "kpi": {
+    "contacts": 30,
+    "replies": 8,
+    "qualified": 8,
+    "proposals": 0,
+    "won": 0,
+    "revenue_rub": 0,
+    "average_check_rub": 0.0,
+    "top_channel": "telegram_chat",
+    "rates": {
+      "reply_rate": 0.2667,
+      "qual_rate": 1.0,
+      "proposal_rate": 0.0,
+      "payment_rate": 0.0,
+      "qualified_to_won": 0.0
+    }
+  }
+}

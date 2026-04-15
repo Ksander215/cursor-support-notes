@@ -1,0 +1,21 @@
+rank,tracker_row,contact_name,lead_source,project_type,pain_point,budget_rub,urgency_days,status,score,recommended_action
+1,12,dev_4,telegram_dm,nodejs_api,bug на проде,5000,1,hot,99,book_call_or_send_proposal
+2,19,dev_8,telegram_chat,fastapi_api,релиз завтра,3000,1,hot,95,book_call_or_send_proposal
+3,6,agency_partner,referral,client_project,требование клиента,5000,7,contacted,63,send_follow_up
+4,10,icp_agency_1,freelance_flru,multi_project,security для клиентов,5000,7,contacted,63,send_follow_up
+5,14,partner_1,referral,client_api,security audit request,5000,7,contacted,63,send_follow_up
+6,20,icp_agency_2,freelance_kwork,multiple_apis,long_term_potential,5000,7,contacted,63,send_follow_up
+7,29,icp_agency_3,freelance_kwork,web_api,new_client,5000,7,contacted,63,send_follow_up
+8,17,icp_freelance_2,freelance_flru,python_api,сдача проекта,3000,5,warm,61,send_follow_up
+9,27,partner_2,referral,client_security,audit requirement,5000,10,contacted,60,send_follow_up
+10,25,icp_freelance_3,freelance_flru,fastapi_api,project_launch,3000,7,contacted,59,send_follow_up
+11,5,dev_1,telegram_dm,nodejs_api,сдача клиенту,3000,3,contacted,58,send_follow_up
+12,15,icp_startup_1,freelance_flru,saas_api,инвестор presentation,5900,14,contacted,57,send_follow_up
+13,9,dev_3,telegram_chat,rest_api,релиз на следующей неделе,3000,5,contacted,56,send_follow_up
+14,2,warm_contact_1,telegram_chat,fastapi_api, релиз через 5 дней,3000,7,contacted,54,send_follow_up
+15,11,former_client_1,referral,api_project,повторный заказ,3000,14,warm,52,send_follow_up
+16,3,warm_contact_2,telegram_chat,django_api,инвестор due diligence,5000,14,contacted,51,send_follow_up
+17,30,dev_14,referral,fastapi_api,bundle_interest,5900,21,warm,51,send_follow_up
+18,7,dev_2,telegram_chat,fastapi_api,нет проверки безопасности,3000,14,warm,47,send_follow_up
+19,24,dev_11,referral,python_api,re-engagement,3000,30,warm,46,send_follow_up
+20,16,dev_6,telegram_chat,django_api,нет бюджета выделен,3000,30,contacted,41,send_follow_up

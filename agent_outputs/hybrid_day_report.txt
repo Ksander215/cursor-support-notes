@@ -1,0 +1,25 @@
+HYBRID DAY RUN REPORT
+Generated: 2026-03-31 22:34:52
+
+Steps:
+- outbound_checklist_automation: success (exit=0, 0.47s)
+- hybrid_tracking_sync: success (exit=0, 0.39s)
+- followup_scheduler: success (exit=0, 0.42s)
+- revenue_kpi_report: success (exit=0, 0.36s)
+
+Total steps: 4
+Success: 4
+Failed: 0
+Total duration: 1.64s
+
+Cash-mode:
+- KPI: contacts=30, replies=8 (26.7%), qualified=8 (100.0%), proposals=0, won=0 (0.0%), revenue=0 RUB
+- Bottleneck: traffic_low (30 < 20 по contacts/day)
+- Actions:
+  * Добавить минимум +10 исходящих DM по ICP из Telegram/бирж.
+  * Опубликовать 2 коротких оффера в релевантных чатах и на биржах.
+  * Подключить реферальный поток: запросить 3 интро у текущих контактов.
+- Targets:
+  * Добрать минимум +0 контактов, чтобы выйти на 20 контактов/день.
+  * Сформировать список из 20 приоритетных контактов на завтра.
+  * Проверить reply-rate в конце дня после нового объёма.

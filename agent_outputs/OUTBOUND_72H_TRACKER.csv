@@ -1,0 +1,31 @@
+timestamp,lead_source,contact_name,project_type,pain_point,budget_rub,urgency_days,status,next_step,next_step_at,offer,deal_value_rub,notes
+2026-03-31T10:00:00+03:00,telegram_chat,warm_contact_1,fastapi_api, релиз через 5 дней,3000,7,contacted,follow_up_d2,2026-04-10,Express API Audit,3000,фрилансер из чата
+2026-03-31T10:15:00+03:00,telegram_chat,warm_contact_2,django_api,инвестор due diligence,5000,14,contacted,follow_up_d2,2026-04-10,Audit + Report Delivery,5000,startup CTO
+2026-03-31T10:30:00+03:00,freelance_flru,icp_cto_1,microservices,фанди round A,5900,30,new,send_linkedin_dm,2026-04-01,Bundle,5900,tech lead из linkedin
+2026-03-31T10:45:00+03:00,telegram_dm,dev_1,nodejs_api,сдача клиенту,3000,3,contacted,follow_up_d2,2026-04-10,Express API Audit,3000,фрилансер из DM
+2026-03-31T11:00:00+03:00,referral,agency_partner,client_project,требование клиента,5000,7,contacted,follow_up_d2,2026-04-10,Standard Audit,5000,реферал от коллеги
+2026-03-31T11:15:00+03:00,telegram_chat,dev_2,fastapi_api,нет проверки безопасности,3000,14,warm,follow_up_d2,2026-04-10,Express API Audit,3000,разработчик из чата
+2026-03-31T11:30:00+03:00,freelance_flru,icp_freelance_1,python_api,новый проект,3000,21,new,send_cold_dm,2026-04-01,Express API Audit,3000,
+2026-03-31T11:45:00+03:00,telegram_chat,dev_3,rest_api,релиз на следующей неделе,3000,5,contacted,follow_up_d2,2026-04-10,Express API Audit,3000,
+2026-03-31T12:00:00+03:00,freelance_flru,icp_agency_1,multi_project,security для клиентов,5000,7,contacted,follow_up_d2,2026-04-10,Agency Package 3,12000,
+2026-03-31T12:15:00+03:00,referral,former_client_1,api_project,повторный заказ,3000,14,warm,follow_up_d2,2026-04-10,Express API Audit,3000,
+2026-03-31T12:30:00+03:00,telegram_dm,dev_4,nodejs_api,bug на проде,5000,1,hot,call_or_proposal,2026-04-08,Standard Audit,5000,срочность высокая
+2026-03-31T12:45:00+03:00,telegram_chat,dev_5,fastapi_api,интерес к security,3000,30,new,send_educational_message,2026-04-02,Express API Audit,3000,
+2026-03-31T13:00:00+03:00,referral,partner_1,client_api,security audit request,5000,7,contacted,follow_up_d2,2026-04-10,Standard Audit,5000,
+2026-03-31T13:15:00+03:00,freelance_flru,icp_startup_1,saas_api,инвестор presentation,5900,14,contacted,follow_up_d2,2026-04-10,Bundle,5900,
+2026-03-31T13:30:00+03:00,telegram_chat,dev_6,django_api,нет бюджета выделен,3000,30,contacted,follow_up_d2,2026-04-10,Express API Audit,3000,"возражение ""дорого"""
+2026-03-31T13:45:00+03:00,freelance_flru,icp_freelance_2,python_api,сдача проекта,3000,5,warm,follow_up_d2,2026-04-10,Express API Audit,3000,
+2026-03-31T14:00:00+03:00,referral,dev_7,rest_api,interest_check,3000,21,new,send_warm_followup,2026-04-02,Express API Audit,3000,
+2026-03-31T14:15:00+03:00,telegram_chat,dev_8,fastapi_api,релиз завтра,3000,1,hot,call_or_proposal,2026-04-08,Express API Audit,3000,urgent
+2026-03-31T14:30:00+03:00,freelance_kwork,icp_agency_2,multiple_apis,long_term_potential,5000,7,contacted,follow_up_d2,2026-04-10,Agency Package 3,12000,
+2026-03-31T14:45:00+03:00,telegram_dm,dev_9,nodejs_api,first_contact,3000,30,new,send_dm_1,2026-04-01,Express API Audit,3000,
+2026-03-31T15:00:00+03:00,telegram_chat,dev_10,django_api,security concerns,3000,14,new,send_chat_message_1,2026-04-01,Express API Audit,3000,
+2026-03-31T15:15:00+03:00,freelance_flru,icp_cto_2,saas_api,no_response_yet,5900,21,new,send_cold_dm,2026-04-01,Bundle,5900,
+2026-03-31T15:30:00+03:00,referral,dev_11,python_api,re-engagement,3000,30,warm,follow_up_d2,2026-04-10,Express API Audit,3000,
+2026-03-31T15:45:00+03:00,freelance_flru,icp_freelance_3,fastapi_api,project_launch,3000,7,contacted,follow_up_d2,2026-04-10,Express API Audit,3000,
+2026-03-31T16:00:00+03:00,telegram_chat,dev_12,rest_api,general_interest,3000,30,new,send_educational,2026-04-02,Express API Audit,3000,
+2026-03-31T16:15:00+03:00,referral,partner_2,client_security,audit requirement,5000,10,contacted,follow_up_d2,2026-04-10,Standard Audit,5000,
+2026-03-31T16:30:00+03:00,telegram_dm,dev_13,nodejs_api,post_release,3000,14,new,send_post_release,2026-04-01,Express API Audit,3000,
+2026-03-31T16:45:00+03:00,freelance_kwork,icp_agency_3,web_api,new_client,5000,7,contacted,follow_up_d2,2026-04-10,Agency Package 3,12000,
+2026-03-31T17:00:00+03:00,referral,dev_14,fastapi_api,bundle_interest,5900,21,warm,follow_up_d2,2026-04-10,Bundle,5900,
+2026-03-31T17:15:00+03:00,telegram_chat,dev_15,django_api,digital_product_interest,1500,30,warm,follow_up_d2,2026-04-02,PDF Guide,1500,

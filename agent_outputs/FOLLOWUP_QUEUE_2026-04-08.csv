@@ -1,0 +1,13 @@
+rank,tracker_row,contact_name,lead_source,status,next_step,next_step_at,urgency_days,budget_rub,reason,priority_score,recommended_message
+1,12,dev_4,telegram_dm,hot,call_or_proposal,2026-04-08,1,5000,due_today,94,call_or_proposal_push
+2,19,dev_8,telegram_chat,hot,call_or_proposal,2026-04-08,1,3000,due_today,90,call_or_proposal_push
+3,22,dev_10,telegram_chat,new,send_chat_message_1,2026-04-01,14,3000,overdue,62,followup_overdue_urgent
+4,28,dev_13,telegram_dm,new,send_post_release,2026-04-01,14,3000,overdue,62,followup_overdue_urgent
+5,4,icp_cto_1,freelance_flru,new,send_linkedin_dm,2026-04-01,30,5900,overdue,61,followup_overdue_urgent
+6,23,icp_cto_2,freelance_flru,new,send_cold_dm,2026-04-01,21,5900,overdue,61,followup_overdue_urgent
+7,31,dev_15,telegram_chat,warm,follow_up_d2,2026-04-02,30,1500,overdue,58,followup_overdue_urgent
+8,8,icp_freelance_1,freelance_flru,new,send_cold_dm,2026-04-01,21,3000,overdue,56,followup_overdue_urgent
+9,13,dev_5,telegram_chat,new,send_educational_message,2026-04-02,30,3000,overdue,56,followup_overdue_urgent
+10,18,dev_7,referral,new,send_warm_followup,2026-04-02,21,3000,overdue,56,followup_overdue_urgent
+11,21,dev_9,telegram_dm,new,send_dm_1,2026-04-01,30,3000,overdue,56,followup_overdue_urgent
+12,26,dev_12,telegram_chat,new,send_educational,2026-04-02,30,3000,overdue,56,followup_overdue_urgent

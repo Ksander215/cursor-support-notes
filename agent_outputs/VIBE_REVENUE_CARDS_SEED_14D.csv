@@ -1,0 +1,13 @@
+title,swimlane,column,priority,offer,price_rub,next_action,deadline,sla_minutes,status
+Lead intake: audit requests,Services Cashflow,Inbox Leads,P0,Express API Audit,3000,Qualify inbound leads and assign owner,2026-04-01,15,open
+Outbound batch #1 (20 leads),Services Cashflow,Inbox Leads,P0,Express API Audit,3000,Send personalized outreach messages,2026-04-01,15,open
+Qualified lead follow-up D+1,Services Cashflow,Qualified,P1,Express API Audit,3000,Follow-up with case snippet and CTA,2026-04-02,15,open
+Call block: 4 sales calls,Services Cashflow,Call/Proposal,P0,Express API Audit,3000,Run 4 calls and send proposals same day,2026-04-02,15,open
+Invoice/payment confirmation batch,Services Cashflow,Payment Pending,P0,Audit + Report Delivery,3000,Confirm payment and move to delivery,2026-04-03,15,open
+Payment workflow activation,Digital Sales Ops,Payment Pending,P0,PDF + Templates Digital Sales,1500,Activate payment-processor workflows in n8n,2026-04-01,30,open
+Digital delivery workflow check,Digital Sales Ops,Delivery/Follow-up,P0,PDF + Templates Digital Sales,1500,Run test delivery and confirm email sent,2026-04-01,30,open
+Email sequence launch,Digital Sales Ops,Delivery/Follow-up,P1,Retention Sequence,0,Enable follow-up sequence for paid users,2026-04-02,30,open
+Content push #1 Telegram,Digital Sales Ops,Qualified,P1,PDF Guide Offer,1500,Publish educational post + CTA,2026-04-02,60,open
+Content push #2 Telegram,Digital Sales Ops,Qualified,P1,CI/CD Templates Offer,2000,Publish proof-driven post + CTA,2026-04-03,60,open
+Weekly optimization review #1,Digital Sales Ops,Call/Proposal,P1,Funnel Optimization,0,Review conversion and update offer copy,2026-04-07,120,open
+Weekly optimization review #2,Digital Sales Ops,Call/Proposal,P1,Funnel Optimization,0,Review KPI deltas and adjust pricing tests,2026-04-14,120,open
