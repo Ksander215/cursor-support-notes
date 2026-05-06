@@ -1,0 +1,65 @@
+---
+import "../styles/global.css";
+const { title = "Условия использования | sec-scanner.pro" } = Astro.props;
+---
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{title}</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="legal-body">
+    <div class="legal-container">
+      <div class="legal-header">
+        <button class="back-btn" id="back-btn">← Назад</button>
+        <h1 class="legal-title">Условия использования</h1>
+      </div>
+      <div class="legal-content">
+        <p><strong>Дата вступления в силу:</strong> 1 мая 2026 г.</p>
+        <h3>1. Общие положения</h3>
+        <p>Настоящие Условия регулируют использование сервиса sec-scanner.pro (далее — «Сервис»), принадлежащего ИП Ким А.А. Регистрируясь или используя Сервис, вы соглашаетесь с настоящими Условиями.</p>
+        <h3>2. Описание сервиса</h3>
+        <p>Сервис предоставляет автоматизированное сканирование безопасности API: проверка SSL/TLS, HTTP-заголовков, OWASP Top-10, генерация отчётов. Сканер не эксплуатирует уязвимости деструктивно и не нарушает работу целевых систем.</p>
+        <h3>3. Подписки и оплата</h3>
+        <p>Стоимость подписки указана на странице тарифов. Тариф PRO (990₽/мес) включает пробный период 7 дней — в течение этого периода списания не производятся. По окончании пробного периода автоматически начинается ежемесячное списание 990₽. Отмена возможна в любой момент через профиль в боте или по запросу на support@sec-scanner.pro — списание за текущий месяц не возвращается, но доступ сохраняется до конца оплаченного периода.</p>
+        <h3>4. Ограничения</h3>
+        <p>Запрещено использовать Сервис для сканирования систем без согласия владельца. Запрещено использовать результаты сканирования для неправомерного доступа к чужим системам. Сервис не гарантирует обнаружение всех возможных уязвимостей.</p>
+        <h3>5. Ответственность</h3>
+        <p>Сервис предоставляется «как есть». Мы не несём ответственности за убытки, вызванные необнаруженными уязвимостями. Максимальная ответственность ограничена суммой оплаченной подписки за текущий месяц.</p>
+        <h3>6. Изменения условий</h3>
+        <p>Мы можем изменять Условия с уведомлением за 14 дней. Продолжение использования Сервиса после изменений означает согласие с новыми Условиями.</p>
+        <h3>7. Разрешение споров</h3>
+        <p>Споры разрешаются в порядке, предусмотренном законодательством РФ.</p>
+      </div>
+    </div>
+
+    <script is:inline>
+      (function() {
+        var tg = window.Telegram && window.Telegram.WebApp;
+        if (tg) { tg.ready(); }
+        document.getElementById('back-btn').addEventListener('click', function() {
+          if (tg && tg.close) tg.close();
+          else window.location.href = '/store';
+        });
+      })();
+    </script>
+
+    <style>
+      .legal-body { margin:0; padding:0; background:var(--color-canvas); color:var(--color-text-primary); font-family:var(--font-sans); -webkit-font-smoothing:antialiased; }
+      .legal-container { max-width:480px; margin:0 auto; padding:16px; }
+      .legal-header { margin-bottom:20px; }
+      .back-btn { background:none; border:none; color:var(--color-green-link); font-size:14px; font-family:var(--font-sans); cursor:pointer; padding:0; margin-bottom:8px; }
+      .back-btn:hover { text-decoration:underline; }
+      .legal-title { font-size:20px; font-weight:700; color:var(--color-text-bright); margin:0; }
+      .legal-content { font-size:14px; color:var(--color-text-secondary); line-height:1.7; }
+      .legal-content h3 { font-size:15px; font-weight:600; color:var(--color-text-bright); margin:20px 0 8px; }
+      .legal-content p { margin:0 0 10px; }
+    </style>
+  </body>
+</html>

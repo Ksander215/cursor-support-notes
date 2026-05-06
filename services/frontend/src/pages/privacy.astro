@@ -1,0 +1,71 @@
+---
+import "../styles/global.css";
+const { title = "Политика конфиденциальности | sec-scanner.pro" } = Astro.props;
+---
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{title}</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="legal-body">
+    <div class="legal-container">
+      <div class="legal-header">
+        <button class="back-btn" id="back-btn">← Назад</button>
+        <h1 class="legal-title">Политика конфиденциальности</h1>
+      </div>
+      <div class="legal-content">
+        <p><strong>Дата вступления в силу:</strong> 1 мая 2026 г.</p>
+        <h3>1. Оператор</h3>
+        <p>Оператор персональных данных — ИП Ким А.А. (далее — «Оператор»). Адрес для обращений: support@sec-scanner.pro.</p>
+        <h3>2. Какие данные обрабатываем</h3>
+        <p><strong>Обязательные:</strong> Telegram ID, имя, username (для идентификации пользователя и отправки результатов сканирования).</p>
+        <p><strong>Предоставляемые пользователем:</strong> URL-адреса API для сканирования, email (опционально для получения отчётов).</p>
+        <p><strong>Технические:</strong> IP-адрес, данные браузера, логи операций (в целях безопасности и технической поддержки).</p>
+        <h3>3. Цели обработки</h3>
+        <p>Предоставление сервиса сканирования безопасности API; идентификация пользователей; выставление счетов и ведение подписок; отправка уведомлений и результатов; улучшение качества сервиса; соблюдение требований законодательства РФ (152-ФЗ).</p>
+        <h3>4. Правовое основание</h3>
+        <p>Обработка осуществляется на основании согласия пользователя (ст. 6 ч. 1 п. 1 152-ФЗ) и договора об оказании услуг (ст. 6 ч. 1 п. 5 152-ФЗ).</p>
+        <h3>5. Хранение данных</h3>
+        <p>Результаты сканирования хранятся 90 дней, после чего удаляются. Персональные данные — до отзыва согласия или удаления аккаунта. Данные защищены шифрованием при передаче (TLS 1.2+) и хранении.</p>
+        <h3>6. Передача третьим лицам</h3>
+        <p>Данные не передаются третьим лицам, за исключением: платежных систем (для обработки оплаты, только минимально необходимые данные); по требованию закона.</p>
+        <h3>7. Права пользователя</h3>
+        <p>Право на доступ к своим данным; право на исправление неточных данных; право на удаление данных (через профиль в боте или по запросу на support@sec-scanner.pro); право на отзыв согласия (через профиль в боте).</p>
+        <h3>8. Cookie и аналитика</h3>
+        <p>Сервис использует минимально необходимые cookie для работы Web App. Аналитические данные собираются только в обезличенном виде.</p>
+        <h3>9. Контакты</h3>
+        <p>По вопросам обработки персональных данных: support@sec-scanner.pro, Telegram: @sec_scanner_support.</p>
+      </div>
+    </div>
+
+    <script is:inline>
+      (function() {
+        var tg = window.Telegram && window.Telegram.WebApp;
+        if (tg) { tg.ready(); }
+        document.getElementById('back-btn').addEventListener('click', function() {
+          if (tg && tg.close) tg.close();
+          else window.location.href = '/store';
+        });
+      })();
+    </script>
+
+    <style>
+      .legal-body { margin:0; padding:0; background:var(--color-canvas); color:var(--color-text-primary); font-family:var(--font-sans); -webkit-font-smoothing:antialiased; }
+      .legal-container { max-width:480px; margin:0 auto; padding:16px; }
+      .legal-header { margin-bottom:20px; }
+      .back-btn { background:none; border:none; color:var(--color-green-link); font-size:14px; font-family:var(--font-sans); cursor:pointer; padding:0; margin-bottom:8px; }
+      .back-btn:hover { text-decoration:underline; }
+      .legal-title { font-size:20px; font-weight:700; color:var(--color-text-bright); margin:0; }
+      .legal-content { font-size:14px; color:var(--color-text-secondary); line-height:1.7; }
+      .legal-content h3 { font-size:15px; font-weight:600; color:var(--color-text-bright); margin:20px 0 8px; }
+      .legal-content p { margin:0 0 10px; }
+    </style>
+  </body>
+</html>

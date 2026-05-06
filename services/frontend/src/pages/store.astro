@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Тарифы | sec-scanner.pro</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body class="store-body">
+  <div class="store-container" id="app">
+    <!-- Header -->
+    <header class="header">
+      <button class="back-btn" id="btn-back" hidden>← Назад</button>
+      <div class="logo">🛡️ sec-scanner.pro</div>
+      <div class="user-info" id="user-badge" hidden>
+        <span id="user-status">Проверка...</span>
+      </div>
+    </header>
+
+    <!-- Main content:Plans -->
+    <main class="main" id="main">
+      <div class="plans-section" id="view-plans">
+        <h1 class="title">Тарифы</h1>
+        <p class="subtitle">Находим уязвимости раньше хакеров</p>
+
+        <div class="plans">
+          <!-- FREE -->
+          <button class="plan-card" onclick="showPlanDetail('free')">
+            <div class="plan-badge">🆓 Free</div>
+            <div class="plan-price">0 ₽<span>/навсегда</span></div>
+            <div class="plan-features">
+              <li>🔒 SSL и TLS</li>
+              <li>🛡️ HTTP-заголовки</li>
+              <li class="disabled">🔥 OWASP Top-10</li>
+              <li class="disabled">⚙️ CI/CD</li>
+              <li class="disabled">📊 Отчёты</li>
+              <li class="disabled">🔔 Уведомления</li>
+            </div>
+            <div class="plan-action">Начать бесплатно</div>
+          </button>
+
+          <!-- PRO -->
+          <button class="plan-card plan-popular" onclick="showPlanDetail('pro')">
+            <div class="popular-badge">Хит</div>
+            <div class="plan-badge">⭐ PRO</div>
+            <div class="plan-price">490₽<span>/мес</span></div>
+            <div class="old-price">990 ₽</div>
+            <div class="plan-features">
+              <li>🔒 SSL и TLS</li>
+              <li>🛡️ HTTP-заголовки</li>
+              <li>🔥 OWASP Top-10</li>
+              <li class="disabled">⚙️ CI/CD</li>
+              <li>📊 Отчёты</li>
+              <li class="disabled">🔔 Уведомления</li>
+            </div>
+            <div class="plan-action">Перейти к оплате</div>
+          </button>
+
+          <!-- ENTERPRISE -->
+          <button class="plan-card" onclick="showPlanDetail('enterprise')">
+            <div class="plan-badge">🏢 Enterprise</div>
+            <div class="plan-price">2490₽<span>/мес</span></div>
+            <div class="old-price">4990 ₽</div>
+            <div class="plan-features">
+              <li>🔒 SSL и TLS</li>
+              <li>🛡️ HTTP-заголовки</li>
+              <li>🔥 OWASP Top-10</li>
+              <li>⚙️ CI/CD</li>
+              <li>📊 Отчёты</li>
+              <li>🔔 Уведомления</li>
+            </div>
+            <div class="plan-action">Перейти к оплате</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Plan Detail View -->
+      <div class="plan-detail" id="view-detail" hidden>
+        <h1 class="title" id="detail-title">Тариф</h1>
+        
+        <div class="detail-price" id="detail-price">
+          <span class="price-amount"></span>
+          <span class="price-period"></span>
+        </div>
+        
+        <div class="detail-old-price" id="detail-old-price" hidden>
+          <span></span>
+        </div>
+
+        <div class="detail-features" id="detail-features"></div>
+
+        <button class="detail-cta" id="detail-cta" onclick="handlePlanAction()">Перейти к оплате</button>
+      </div>
+
+      <!-- Success View -->
+      <div class="success-view" id="view-success" hidden>
+        <div class="success-icon">🎉</div>
+        <h1 class="title">Готово!</h1>
+        <p class="success-text" id="success-text">Подписка активирована</p>
+        <button class="detail-cta" onclick="goToPlans()">К тарифам</button>
+      </div>
+
+      <!-- Loading View -->
+      <div class="loading-view" id="view-loading" hidden>
+        <div class="loading-spinner">⏳</div>
+        <p>Подождите...</p>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer" id="footer">
+      <a href="/terms">Условия</a>
+      <span>|</span>
+      <a href="/privacy">Политика</a>
+      <span>|</span>
+      <a href="https://t.me/sec_scanner_support" target="_blank">Поддержка</a>
+    </footer>
+  </div>
+
+  <script is:inline>
+    var PLANS = {
+      free: {
+        name: "Free",
+        price: 0,
+        period: "навсегда",
+        features: {
+          ssl_tls: true,
+          headers: true,
+          owasp: false,
+          cicd: false,
+          reports: false,
+          alerts: false
+        },
+        cta: "Начать бесплатно"
+      },
+      pro: {
+        name: "PRO",
+        price: 490,
+        oldPrice: 990,
+        period: "мес",
+        features: {
+          ssl_tls: true,
+          headers: true,
+          owasp: true,
+          cicd: false,
+          reports: true,
+          alerts: false
+        },
+        cta: "Перейти к оплате"
+      },
+      enterprise: {
+        name: "Enterprise",
+        price: 2490,
+        oldPrice: 4990,
+        period: "мес",
+        features: {
+          ssl_tls: true,
+          headers: true,
+          owasp: true,
+          cicd: true,
+          reports: true,
+          alerts: true
+        },
+        cta: "Перейти к оплате"
+      }
+    };
+
+    var FEATURES = [
+      { id: "ssl_tls", name: "SSL и TLS", icon: "🔒", desc: "Версия протокола, срок действия сертификата, слабые шифры" },
+      { id: "headers", name: "HTTP-заголовки", icon: "🛡️", desc: "HSTS, CSP, X-Frame-Options, CORS" },
+      { id: "owasp", name: "OWASP Top-10", icon: "🔥", desc: "Автоматическое обнаружение уязвимостей из топ-10 OWASP" },
+      { id: "cicd", name: "CI/CD интеграция", icon: "⚙️", desc: "Готовые шаблоны для GitHub, GitLab, Jenkins" },
+      { id: "reports", name: "Удобные отчёты", icon: "📊", desc: "PDF, JSON и Markdown с историей сканов" },
+      { id: "alerts", name: "Уведомления", icon: "🔔", desc: "Telegram, Slack или email при критических уязв��мостях" }
+    ];
+
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var isTG = !!(tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initData);
+    var currentPlan = null;
+
+    var views = {
+      plans: document.getElementById("view-plans"),
+      detail: document.getElementById("view-detail"),
+      success: document.getElementById("view-success"),
+      loading: document.getElementById("view-loading")
+    };
+    var footer = document.getElementById("footer");
+    var backBtn = document.getElementById("btn-back");
+    var ctaBtn = document.getElementById("detail-cta");
+
+    function showView(name) {
+      Object.keys(views).forEach(function(k) { views[k].hidden = true; });
+      views[name].hidden = false;
+      footer.hidden = name === "success" || name === "loading";
+      backBtn.hidden = name === "plans";
+    }
+
+    function showPlanDetail(planId) {
+      currentPlan = planId;
+      var plan = PLANS[planId];
+      
+      document.getElementById("detail-title").textContent = plan.name;
+      document.querySelector("#detail-price .price-amount").textContent = plan.price === 0 ? "Бесплатно" : plan.price + " ₽";
+      document.querySelector("#detail-price .price-period").textContent = plan.period ? "/" + plan.period : "";
+      
+      var oldPriceEl = document.getElementById("detail-old-price");
+      if (plan.oldPrice) {
+        oldPriceEl.hidden = false;
+        oldPriceEl.querySelector("span").textContent = plan.oldPrice + " ₽";
+      } else {
+        oldPriceEl.hidden = true;
+      }
+      
+      var featuresHtml = "";
+      FEATURES.forEach(function(f) {
+        var available = plan.features[f.id];
+        featuresHtml += '<div class="detail-feature ' + (available ? "" : "disabled") + '">' +
+          '<span class="feature-icon">' + f.icon + '</span>' +
+          '<div class="feature-info">' +
+            '<div class="feature-name">' + f.name + (available ? ' ✓' : ' ✗') + '</div>' +
+            '<div class="feature-desc">' + f.desc + '</div>' +
+          '</div>' +
+        '</div>';
+      });
+      document.getElementById("detail-features").innerHTML = featuresHtml;
+      
+      ctaBtn.textContent = plan.price === 0 ? "Начать бесплатно" : "Перейти к оплате · " + plan.price + " ₽";
+      ctaBtn.className = plan.price === 0 ? "detail-cta cta-free" : "detail-cta";
+      
+      showView("detail");
+    }
+
+    function goToPlans() {
+      currentPlan = null;
+      showView("plans");
+    }
+
+    function showSuccess(text) {
+      document.getElementById("success-text").textContent = text || "Подписка активирована!";
+      showView("success");
+    }
+
+    function showLoading() {
+      showView("loading");
+    }
+
+    function handlePlanAction() {
+      var plan = PLANS[currentPlan];
+      
+      if (currentPlan === "free") {
+        if (!isTG) {
+          showSuccess("Тест: подписка Free активирована!");
+          return;
+        }
+        showLoading();
+        fetch("https://api.sec-scanner.pro/api/v1/payments/bot/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan_code: "free", init_data: tg.initData })
+        })
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function() {
+          showSuccess("✅ Подписка Free активирована!");
+        })
+        .catch(function() {
+          showSuccess("⚠️ Подписка активирована (возможно)");
+        });
+        return;
+      }
+      
+      if (plan.price > 0) {
+        var payLink = "https://t.me/sec_scanner_support?start=buy_" + currentPlan;
+        if (tg && tg.openLink) {
+          tg.openLink(payLink);
+        } else {
+          window.open(payLink, "_blank");
+        }
+      }
+    }
+
+    backBtn.addEventListener("click", goToPlans);
+
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    if (!isTG) {
+      document.getElementById("user-badge").hidden = false;
+      document.getElementById("user-status").textContent = "Тестовая версия";
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg: #1a1a1a;
+      --text: #fff;
+      --hint: #999;
+      --accent: #3390ec;
+      --card-bg: #2a2a2a;
+      --border: #3a3a3a;
+      --green: #4caf50;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+    .store-container {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 12px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      margin-bottom: 16px;
+    }
+    .back-btn {
+      background: none;
+      border: none;
+      color: #8fbb58;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0 12px 0 0;
+    }
+    .logo {
+      font-weight: 700;
+      font-size: 18px;
+    }
+    .user-info {
+      font-size: 12px;
+      color: var(--hint);
+      background: var(--card-bg);
+      padding: 4px 10px;
+      border-radius: 12px;
+      margin-left: auto;
+    }
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      color: var(--hint);
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .plans {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .plan-card {
+      display: block;
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: left;
+      cursor: pointer;
+      transition: transform .15s, border-color .15s;
+      color: var(--text);
+    }
+    .plan-card:active { transform: scale(.98); }
+    .plan-card:hover { border-color: var(--accent); }
+    .plan-popular {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, #2a2a2a, #1f2a3a);
+    }
+    .popular-badge {
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .plan-badge {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .plan-popular .plan-badge { color: var(--accent); }
+    .plan-price {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .plan-price span {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--hint);
+    }
+    .old-price {
+      font-size: 14px;
+      color: var(--hint);
+      text-decoration: line-through;
+      margin-bottom: 8px;
+    }
+    .plan-features {
+      list-style: none;
+      font-size: 13px;
+      color: var(--hint);
+      margin: 12px 0;
+    }
+    .plan-features li { margin-bottom: 4px; }
+    .plan-features li.disabled { opacity: 0.4; }
+    .plan-action {
+      font-size: 14px;
+      font-weight: 600;
+      background: var(--accent);
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .plan-popular .plan-action { background: var(--accent); }
+
+    /* Detail View */
+    .plan-detail { padding: 0; }
+    .detail-price {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .detail-price .price-period {
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--hint);
+    }
+    .detail-old-price {
+      font-size: 16px;
+      color: var(--hint);
+      text-decoration: line-through;
+      margin-bottom: 20px;
+    }
+    .detail-features {
+      margin: 20px 0;
+    }
+    .detail-feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px;
+      background: var(--card-bg);
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+    .detail-feature.disabled {
+      opacity: 0.4;
+    }
+    .feature-icon {
+      font-size: 20px;
+    }
+    .feature-info {
+      flex: 1;
+    }
+    .feature-name {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .feature-desc {
+      font-size: 12px;
+      color: var(--hint);
+    }
+    .detail-cta {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .detail-cta.cta-free {
+      background: var(--green);
+    }
+
+    /* Success */
+    .success-view {
+      text-align: center;
+      padding: 40px 0;
+    }
+    .success-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    .success-text {
+      color: var(--hint);
+      margin-bottom: 20px;
+    }
+
+    /* Loading */
+    .loading-view {
+      text-align: center;
+      padding: 40px 0;
+    }
+    .loading-spinner {
+      font-size: 48px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Footer */
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      padding: 16px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .footer a {
+      color: var(--hint);
+      text-decoration: none;
+    }
+  </style>
+</body>
+</html>
