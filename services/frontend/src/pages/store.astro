@@ -40,7 +40,7 @@
       <div class="plans" id="view-plans">
         <!-- FREE -->
         <div class="plan-card-wrapper">
-          <div class="plan-card" onclick="showPlanDetail('free')">
+          <div class="plan-card" onclick="location.href='/free-scan'">
             <div class="plan-glow"></div>
             <div class="plan-content">
               <div class="plan-header">
@@ -59,14 +59,14 @@
                 <div class="feature-card disabled"><span class="feature-cross">✗</span> <span>Отчёты</span></div>
                 <div class="feature-card disabled"><span class="feature-cross">✗</span> <span>Уведомления</span></div>
               </div>
-              <button class="plan-btn btn-free">Начать бесплатно</button>
+              <button class="plan-btn btn-free" onclick="location.href='/free-scan'">Начать бесплатно</button>
             </div>
           </div>
         </div>
 
         <!-- PRO -->
-        <div class="plan-card-wrapper">
-          <div class="plan-card popular" onclick="showPlanDetail('pro')">
+<div class="plan-card-wrapper">
+          <div class="plan-card popular" onclick="alert('Тариф PRO скоро! Свяжитесь с нами @sec_scanner_support')">
             <div class="plan-glow glow-pro"></div>
             <div class="popular-mark">⭐ ХИТ</div>
             <div class="plan-content">
@@ -87,14 +87,14 @@
                 <div class="feature-card"><span class="feature-check">✓</span> <span>Отчёты</span></div>
                 <div class="feature-card disabled"><span class="feature-cross">✗</span> <span>Уведомления</span></div>
               </div>
-              <button class="plan-btn btn-pro">Попробовать 7 дней</button>
+              <button class="plan-btn btn-pro" onclick="alert('Тариф PRO скоро! Свяжитесь с нами @sec_scanner_support')">Попробовать 7 дней</button>
             </div>
           </div>
         </div>
 
         <!-- ENTERPRISE -->
-        <div class="plan-card-wrapper">
-          <div class="plan-card" onclick="showPlanDetail('enterprise')">
+<div class="plan-card-wrapper">
+          <div class="plan-card" onclick="location.href='https://t.me/sec_scanner_support'">
             <div class="plan-glow glow-enterprise"></div>
             <div class="plan-content">
               <div class="plan-header">
@@ -114,44 +114,13 @@
                 <div class="feature-card"><span class="feature-check">✓</span> <span>Отчёты</span></div>
                 <div class="feature-card"><span class="feature-check">✓</span> <span>Уведомления</span></div>
               </div>
-              <button class="plan-btn btn-enterprise">Связаться с нами</button>
+              <button class="plan-btn btn-enterprise" onclick="location.href='https://t.me/sec_scanner_support'">Связаться с нами</button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Plan Detail View -->
-      <div class="plan-detail" id="view-detail" hidden>
-        <h1 class="title" id="detail-title">Тариф</h1>
-        
-        <div class="detail-price" id="detail-price">
-          <span class="price-amount"></span>
-          <span class="price-period"></span>
-        </div>
-        
-        <div class="detail-old-price" id="detail-old-price" hidden>
-          <span></span>
-        </div>
-
-        <div class="detail-features" id="detail-features"></div>
-
-        <button class="detail-cta" id="detail-cta" onclick="handlePlanAction()">Перейти к оплате</button>
-      </div>
-
-      <!-- Success View -->
-      <div class="success-view" id="view-success" hidden>
-        <div class="success-icon">🎉</div>
-        <h1 class="title">Готово!</h1>
-        <p class="success-text" id="success-text">Подписка активирована</p>
-        <button class="detail-cta" onclick="goToPlans()">К тарифам</button>
-      </div>
-
-      <!-- Loading View -->
-      <div class="loading-view" id="view-loading" hidden>
-        <div class="loading-spinner">⏳</div>
-        <p>Подождите...</p>
-      </div>
-    </main>
+</main>
 
     <footer class="footer" id="footer">
       <a href="/terms">Условия</a>
@@ -243,11 +212,11 @@
     function showPlanDetail(planId) {
       currentPlan = planId;
       var plan = PLANS[planId];
-      
+
       document.getElementById("detail-title").textContent = plan.name;
       document.querySelector("#detail-price .price-amount").textContent = plan.price === 0 ? "Бесплатно" : plan.price + " ₽";
       document.querySelector("#detail-price .price-period").textContent = plan.period ? "/" + plan.period : "";
-      
+
       var oldPriceEl = document.getElementById("detail-old-price");
       if (plan.oldPrice) {
         oldPriceEl.hidden = false;
@@ -255,7 +224,7 @@
       } else {
         oldPriceEl.hidden = true;
       }
-      
+
       var featuresHtml = "";
       FEATURES.forEach(function(f) {
         var available = plan.features[f.id];
@@ -268,10 +237,10 @@
         '</div>';
       });
       document.getElementById("detail-features").innerHTML = featuresHtml;
-      
+
       ctaBtn.textContent = plan.price === 0 ? "Начать бесплатно" : "Перейти к оплате · " + plan.price + " ₽";
       ctaBtn.className = plan.price === 0 ? "detail-cta cta-free" : (planId === "pro" ? "detail-cta cta-pro" : "detail-cta cta-enterprise");
-      
+
       showView("detail");
     }
 
@@ -291,7 +260,7 @@
 
     function handlePlanAction() {
       var plan = PLANS[currentPlan];
-      
+
       if (currentPlan === "free") {
         if (!isTG) {
           showSuccess("Тест: подписка Free активирована!");
@@ -312,7 +281,7 @@
         });
         return;
       }
-      
+
       if (plan.price > 0) {
         var payLink = "https://t.me/sec_scanner_support?start=buy_" + currentPlan;
         if (tg && tg.openLink) {
@@ -374,7 +343,6 @@
       background: var(--bg-dark);
       color: var(--text);
       min-height: 100vh;
-      padding-bottom: 80px;
     }
     .store-container {
       max-width: 420px;
@@ -790,17 +758,13 @@
 
     /* Footer */
     .footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
       display: flex;
       justify-content: center;
       gap: 12px;
-      padding: 16px;
-      background: var(--bg-dark);
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 20px 16px;
       font-size: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      margin-top: 24px;
     }
     .footer a {
       color: var(--text-dim);
