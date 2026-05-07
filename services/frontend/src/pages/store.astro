@@ -8,73 +8,115 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 </head>
 <body class="store-body">
   <div class="store-container" id="app">
-    <!-- Header -->
     <header class="header">
       <button class="back-btn" id="btn-back" hidden>← Назад</button>
-      <div class="logo">🛡️ sec-scanner.pro</div>
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span>SEC SCANNER</span>
+      </div>
       <div class="user-info" id="user-badge" hidden>
         <span id="user-status">Проверка...</span>
       </div>
     </header>
 
-    <!-- Main content:Plans -->
     <main class="main" id="main">
-      <div class="plans-section" id="view-plans">
-        <h1 class="title">Тарифы</h1>
-        <p class="subtitle">Находим уязвимости раньше хакеров</p>
+      <div class="promo-banner">
+        <div class="promo-icon">🛡️</div>
+        <div class="promo-text">
+          <span class="promo-badge">API SECURITY</span>
+          <span class="promo-desc">Сканер безопасности API</span>
+        </div>
+      </div>
 
-        <div class="plans">
-          <!-- FREE -->
-          <button class="plan-card" onclick="showPlanDetail('free')">
-            <div class="plan-badge">🆓 Free</div>
-            <div class="plan-price">0 ₽<span>/навсегда</span></div>
-            <div class="plan-features">
-              <li>🔒 SSL и TLS</li>
-              <li>🛡️ HTTP-заголовки</li>
-              <li class="disabled">🔥 OWASP Top-10</li>
-              <li class="disabled">⚙️ CI/CD</li>
-              <li class="disabled">📊 Отчёты</li>
-              <li class="disabled">🔔 Уведомления</li>
-            </div>
-            <div class="plan-action">Начать бесплатно</div>
-          </button>
+      <div class="section-title">
+        <span class="title-icon">🎯</span>
+        Выберите тариф
+      </div>
 
-          <!-- PRO -->
-          <button class="plan-card plan-popular" onclick="showPlanDetail('pro')">
-            <div class="popular-badge">Хит</div>
-            <div class="plan-badge">⭐ PRO</div>
-            <div class="plan-price">490₽<span>/мес</span></div>
-            <div class="old-price">990 ₽</div>
-            <div class="plan-features">
-              <li>🔒 SSL и TLS</li>
-              <li>🛡️ HTTP-заголовки</li>
-              <li>🔥 OWASP Top-10</li>
-              <li class="disabled">⚙️ CI/CD</li>
-              <li>📊 Отчёты</li>
-              <li class="disabled">🔔 Уведомления</li>
+      <div class="plans" id="view-plans">
+        <!-- FREE -->
+        <div class="plan-card-wrapper">
+          <div class="plan-card" onclick="showPlanDetail('free')">
+            <div class="plan-glow"></div>
+            <div class="plan-content">
+              <div class="plan-header">
+                <span class="plan-emoji">🆓</span>
+                <span class="plan-badge">FREE</span>
+              </div>
+              <div class="plan-price">
+                <span class="price-current">0 ₽</span>
+                <span class="price-period">/навсегда</span>
+              </div>
+              <div class="plan-features">
+                <div class="feature-card"><span class="feature-check">✓</span> <span>SSL и TLS</span></div>
+                <div class="feature-card"><span class="feature-check">✓</span> <span>HTTP-заголовки</span></div>
+                <div class="feature-card disabled"><span class="feature-cross">✗</span> <span>OWASP Top-10</span></div>
+                <div class="feature-card disabled"><span class="feature-cross">✗</span> <span>CI/CD</span></div>
+                <div class="feature-card disabled"><span class="feature-cross">✗</span> <span>Отчёты</span></div>
+                <div class="feature-card disabled"><span class="feature-cross">✗</span> <span>Уведомления</span></div>
+              </div>
+              <button class="plan-btn btn-free">Начать бесплатно</button>
             </div>
-            <div class="plan-action">Перейти к оплате</div>
-          </button>
+          </div>
+        </div>
 
-          <!-- ENTERPRISE -->
-          <button class="plan-card" onclick="showPlanDetail('enterprise')">
-            <div class="plan-badge">🏢 Enterprise</div>
-            <div class="plan-price">2490₽<span>/мес</span></div>
-            <div class="old-price">4990 ₽</div>
-            <div class="plan-features">
-              <li>🔒 SSL и TLS</li>
-              <li>🛡️ HTTP-заголовки</li>
-              <li>🔥 OWASP Top-10</li>
-              <li>⚙️ CI/CD</li>
-              <li>📊 Отчёты</li>
-              <li>🔔 Уведомления</li>
+        <!-- PRO -->
+        <div class="plan-card-wrapper">
+          <div class="plan-card popular" onclick="showPlanDetail('pro')">
+            <div class="plan-glow glow-pro"></div>
+            <div class="popular-mark">⭐ ХИТ</div>
+            <div class="plan-content">
+              <div class="plan-header">
+                <span class="plan-emoji">⭐</span>
+                <span class="plan-badge badge-pro">PRO</span>
+              </div>
+              <div class="price-row">
+                <span class="price-current">490 ₽</span>
+                <span class="price-old">990 ₽</span>
+              </div>
+              <div class="discount-badge">-50%</div>
+              <div class="plan-features">
+                <div class="feature-card"><span class="feature-check">✓</span> <span>SSL и TLS</span></div>
+                <div class="feature-card"><span class="feature-check">✓</span> <span>HTTP-заголовки</span></div>
+                <div class="feature-card"><span class="feature-check">✓</span> <span>OWASP Top-10</span></div>
+                <div class="feature-card disabled"><span class="feature-cross">✗</span> <span>CI/CD</span></div>
+                <div class="feature-card"><span class="feature-check">✓</span> <span>Отчёты</span></div>
+                <div class="feature-card disabled"><span class="feature-cross">✗</span> <span>Уведомления</span></div>
+              </div>
+              <button class="plan-btn btn-pro">Попробовать 7 дней</button>
             </div>
-            <div class="plan-action">Перейти к оплате</div>
-          </button>
+          </div>
+        </div>
+
+        <!-- ENTERPRISE -->
+        <div class="plan-card-wrapper">
+          <div class="plan-card" onclick="showPlanDetail('enterprise')">
+            <div class="plan-glow glow-enterprise"></div>
+            <div class="plan-content">
+              <div class="plan-header">
+                <span class="plan-emoji">🏢</span>
+                <span class="plan-badge badge-enterprise">ENTERPRISE</span>
+              </div>
+              <div class="price-row">
+                <span class="price-current">2 490 ₽</span>
+                <span class="price-old">4 990 ₽</span>
+              </div>
+              <div class="discount-badge">-50%</div>
+              <div class="plan-features">
+                <div class="feature-card"><span class="feature-check">✓</span> <span>SSL и TLS</span></div>
+                <div class="feature-card"><span class="feature-check">✓</span> <span>HTTP-заголовки</span></div>
+                <div class="feature-card"><span class="feature-check">✓</span> <span>OWASP Top-10</span></div>
+                <div class="feature-card"><span class="feature-check">✓</span> <span>CI/CD</span></div>
+                <div class="feature-card"><span class="feature-check">✓</span> <span>Отчёты</span></div>
+                <div class="feature-card"><span class="feature-check">✓</span> <span>Уведомления</span></div>
+              </div>
+              <button class="plan-btn btn-enterprise">Связаться с нами</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -111,7 +153,6 @@
       </div>
     </main>
 
-    <!-- Footer -->
     <footer class="footer" id="footer">
       <a href="/terms">Условия</a>
       <span>|</span>
@@ -150,7 +191,7 @@
           reports: true,
           alerts: false
         },
-        cta: "Перейти к оплате"
+        cta: "Попробовать 7 дней"
       },
       enterprise: {
         name: "Enterprise",
@@ -165,7 +206,7 @@
           reports: true,
           alerts: true
         },
-        cta: "Перейти к оплате"
+        cta: "Связаться с нами"
       }
     };
 
@@ -175,7 +216,7 @@
       { id: "owasp", name: "OWASP Top-10", icon: "🔥", desc: "Автоматическое обнаружение уязвимостей из топ-10 OWASP" },
       { id: "cicd", name: "CI/CD интеграция", icon: "⚙️", desc: "Готовые шаблоны для GitHub, GitLab, Jenkins" },
       { id: "reports", name: "Удобные отчёты", icon: "📊", desc: "PDF, JSON и Markdown с историей сканов" },
-      { id: "alerts", name: "Уведомления", icon: "🔔", desc: "Telegram, Slack или email при критических уязв��мостях" }
+      { id: "alerts", name: "Уведомления", icon: "🔔", desc: "Telegram, Slack или email при критических уязвимостях" }
     ];
 
     var tg = window.Telegram && window.Telegram.WebApp;
@@ -229,7 +270,7 @@
       document.getElementById("detail-features").innerHTML = featuresHtml;
       
       ctaBtn.textContent = plan.price === 0 ? "Начать бесплатно" : "Перейти к оплате · " + plan.price + " ₽";
-      ctaBtn.className = plan.price === 0 ? "detail-cta cta-free" : "detail-cta";
+      ctaBtn.className = plan.price === 0 ? "detail-cta cta-free" : (planId === "pro" ? "detail-cta cta-pro" : "detail-cta cta-enterprise");
       
       showView("detail");
     }
@@ -293,22 +334,44 @@
       document.getElementById("user-badge").hidden = false;
       document.getElementById("user-status").textContent = "Тестовая версия";
     }
+
+    // Telegram theme integration
+    (function() {
+      var tg = window.Telegram && window.Telegram.WebApp;
+      if (!tg || !tg.themeParams) return;
+      var colors = tg.themeParams;
+      var root = document.documentElement;
+      if (colors.bg_color) root.style.setProperty('--tg-bg', colors.bg_color);
+      if (colors.text_color) root.style.setProperty('--tg-text', colors.text_color);
+      if (colors.hint_color) root.style.setProperty('--tg-hint', colors.hint_color);
+      if (colors.button_color) root.style.setProperty('--tg-button', colors.button_color);
+      if (colors.button_text_color) root.style.setProperty('--tg-button-text', colors.button_text_color);
+      if (colors.secondary_bg_color) root.style.setProperty('--tg-secondary-bg', colors.secondary_bg_color);
+      document.body.style.background = colors.bg_color || '#1c1c1e';
+      document.body.style.color = colors.text_color || '#ffffff';
+    })();
   </script>
 
   <style>
     :root {
-      --bg: #1a1a1a;
+      --bg-dark: #0F0F1A;
+      --bg-card: rgba(255, 255, 255, 0.03);
       --text: #fff;
-      --hint: #999;
-      --accent: #3390ec;
-      --card-bg: #2a2a2a;
-      --border: #3a3a3a;
-      --green: #4caf50;
+      --text-dim: #888;
+      --text-muted: #555;
+      --accent-purple: #9333EA;
+      --accent-pink: #EC4899;
+      --accent-orange: #F59E0B;
+      --accent-blue: #3390ec;
+      --accent-green: #10B981;
+      --gradient-pro: linear-gradient(135deg, #7C3AED, #A855F7);
+      --gradient-premium: linear-gradient(135deg, #F59E0B, #EF4444, #EC4899);
+      --gradient-enterprise: linear-gradient(135deg, #3B82F6, #6366F1);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-dark);
       color: var(--text);
       min-height: 100vh;
       padding-bottom: 80px;
@@ -318,119 +381,318 @@
       margin: 0 auto;
       padding: 12px;
     }
+
+    /* Header */
     .header {
       display: flex;
       align-items: center;
       padding: 12px 0;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
     .back-btn {
       background: none;
       border: none;
-      color: #8fbb58;
+      color: #9333EA;
       font-size: 14px;
       cursor: pointer;
       padding: 0 12px 0 0;
     }
     .logo {
-      font-weight: 700;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .logo-icon {
       font-size: 18px;
+      animation: pulse 2s infinite;
     }
     .user-info {
-      font-size: 12px;
-      color: var(--hint);
-      background: var(--card-bg);
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--bg-card);
       padding: 4px 10px;
       border-radius: 12px;
       margin-left: auto;
+      border: 1px solid rgba(147, 51, 234, 0.2);
     }
-    .title {
-      font-size: 24px;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-    .subtitle {
-      color: var(--hint);
-      font-size: 14px;
+
+    /* Promo Banner */
+    .promo-banner {
+      background: rgba(147, 51, 234, 0.12);
+      border: 1px solid rgba(147, 51, 234, 0.25);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
       margin-bottom: 20px;
     }
+    .promo-icon {
+      width: 44px;
+      height: 44px;
+      background: var(--gradient-pro);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+    .promo-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .promo-badge {
+      background: var(--gradient-pro);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .promo-desc {
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    /* Section Title */
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .title-icon {
+      font-size: 18px;
+    }
+
+    /* Plans */
     .plans {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
+    }
+    .plan-card-wrapper {
+      position: relative;
     }
     .plan-card {
-      display: block;
-      width: 100%;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      text-align: left;
+      position: relative;
+      background: var(--bg-card);
+      border-radius: 20px;
+      overflow: hidden;
       cursor: pointer;
-      transition: transform .15s, border-color .15s;
-      color: var(--text);
+      transition: transform 0.2s ease;
     }
-    .plan-card:active { transform: scale(.98); }
-    .plan-card:hover { border-color: var(--accent); }
-    .plan-popular {
-      border-color: var(--accent);
-      background: linear-gradient(135deg, #2a2a2a, #1f2a3a);
+    .plan-card:active {
+      transform: scale(0.98);
     }
-    .popular-badge {
+    .plan-card:hover .plan-glow {
+      opacity: 1;
+    }
+
+    /* Gradient Border via ::before */
+    .plan-card::before {
+      content: '';
       position: absolute;
-      top: -10px;
-      right: 12px;
-      background: var(--accent);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 10px;
+      inset: 0;
+      border-radius: 20px;
+      padding: 1.5px;
+      background: var(--gradient-pro);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+    .plan-card.popular::before {
+      background: var(--gradient-pro);
+    }
+    .plan-card:nth-child(3)::before {
+      background: var(--gradient-enterprise);
+    }
+
+    /* Glow Effect */
+    .plan-glow {
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 50% 50%, rgba(147, 51, 234, 0.08), transparent 60%);
+      opacity: 0.6;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .plan-card.popular .plan-glow {
+      background: radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.12), transparent 50%);
+    }
+    .plan-card:nth-child(3) .plan-glow {
+      background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1), transparent 50%);
+    }
+
+    /* Content */
+    .plan-content {
+      position: relative;
+      padding: 20px;
+      z-index: 1;
+    }
+    .plan-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .plan-emoji {
+      font-size: 28px;
     }
     .plan-badge {
-      font-size: 12px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-    .plan-popular .plan-badge { color: var(--accent); }
-    .plan-price {
-      font-size: 24px;
+      font-size: 13px;
       font-weight: 700;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+    .badge-pro {
+      background: var(--gradient-pro);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .badge-enterprise {
+      background: var(--gradient-enterprise);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Popular Mark */
+    .popular-mark {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--gradient-pro);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+
+    /* Price */
+    .plan-price {
       margin-bottom: 4px;
     }
-    .plan-price span {
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .price-current {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .price-old {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-decoration: line-through;
+    }
+    .price-period {
       font-size: 14px;
       font-weight: 400;
-      color: var(--hint);
+      color: var(--text-dim);
     }
-    .old-price {
-      font-size: 14px;
-      color: var(--hint);
-      text-decoration: line-through;
-      margin-bottom: 8px;
-    }
-    .plan-features {
-      list-style: none;
-      font-size: 13px;
-      color: var(--hint);
-      margin: 12px 0;
-    }
-    .plan-features li { margin-bottom: 4px; }
-    .plan-features li.disabled { opacity: 0.4; }
-    .plan-action {
-      font-size: 14px;
-      font-weight: 600;
-      background: var(--accent);
-      color: #fff;
-      padding: 10px;
+    .discount-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(239, 68, 68, 0.2);
+      color: #EF4444;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
       border-radius: 8px;
-      text-align: center;
     }
-    .plan-popular .plan-action { background: var(--accent); }
+    .plan-card:nth-child(3) .discount-badge {
+      background: rgba(59, 130, 246, 0.2);
+      color: #3B82F6;
+    }
+
+    /* Features */
+    .plan-features {
+      margin: 16px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .feature-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .feature-card.disabled {
+      opacity: 0.35;
+    }
+    .feature-check {
+      color: var(--accent-green);
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .feature-cross {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Buttons */
+    .plan-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 8px;
+    }
+    .plan-btn:active {
+      transform: scale(0.98);
+    }
+    .btn-free {
+      background: var(--accent-green);
+      color: #fff;
+    }
+    .btn-pro {
+      background: var(--gradient-pro);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(147, 51, 234, 0.35);
+    }
+    .btn-pro:hover {
+      filter: brightness(1.1);
+      transform: scale(1.02);
+    }
+    .btn-enterprise {
+      background: var(--gradient-enterprise);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+    }
+    .btn-enterprise:hover {
+      filter: brightness(1.1);
+      transform: scale(1.02);
+    }
 
     /* Detail View */
-    .plan-detail { padding: 0; }
+    .plan-detail {
+      padding: 0;
+    }
     .detail-price {
       font-size: 32px;
       font-weight: 700;
@@ -439,11 +701,11 @@
     .detail-price .price-period {
       font-size: 16px;
       font-weight: 400;
-      color: var(--hint);
+      color: var(--text-dim);
     }
     .detail-old-price {
       font-size: 16px;
-      color: var(--hint);
+      color: var(--text-muted);
       text-decoration: line-through;
       margin-bottom: 20px;
     }
@@ -455,9 +717,10 @@
       align-items: flex-start;
       gap: 12px;
       padding: 12px;
-      background: var(--card-bg);
-      border-radius: 10px;
+      background: var(--bg-card);
+      border-radius: 12px;
       margin-bottom: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
     .detail-feature.disabled {
       opacity: 0.4;
@@ -474,21 +737,27 @@
     }
     .feature-desc {
       font-size: 12px;
-      color: var(--hint);
+      color: var(--text-dim);
     }
     .detail-cta {
       width: 100%;
-      padding: 14px;
+      padding: 16px;
       font-size: 16px;
-      font-weight: 600;
-      background: var(--accent);
-      color: #fff;
+      font-weight: 700;
       border: none;
-      border-radius: 10px;
+      border-radius: 14px;
       cursor: pointer;
+      background: var(--gradient-pro);
+      color: #fff;
     }
     .detail-cta.cta-free {
-      background: var(--green);
+      background: var(--accent-green);
+    }
+    .detail-cta.cta-pro {
+      background: var(--gradient-pro);
+    }
+    .detail-cta.cta-enterprise {
+      background: var(--gradient-enterprise);
     }
 
     /* Success */
@@ -497,11 +766,11 @@
       padding: 40px 0;
     }
     .success-icon {
-      font-size: 48px;
+      font-size: 56px;
       margin-bottom: 16px;
     }
     .success-text {
-      color: var(--hint);
+      color: var(--text-dim);
       margin-bottom: 20px;
     }
 
@@ -529,13 +798,36 @@
       justify-content: center;
       gap: 12px;
       padding: 16px;
-      background: var(--bg);
-      border-top: 1px solid var(--border);
+      background: var(--bg-dark);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
       font-size: 12px;
     }
     .footer a {
-      color: var(--hint);
+      color: var(--text-dim);
       text-decoration: none;
+    }
+
+    /* Animations */
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.4); }
+      70% { box-shadow: 0 0 0 8px rgba(147, 51, 234, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0); }
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 400px), (max-device-width: 400px) {
+      .store-container { padding: 10px; }
+      .plan-content { padding: 16px; }
+      .price-current { font-size: 24px; }
+      .plan-btn { padding: 12px; font-size: 14px; }
+      .header { padding: 10px 0; }
+      .section-title { font-size: 16px; }
+      .promo-banner { padding: 12px; }
+      .feature { font-size: 12px; }
+    }
+
+    @media (max-height: 600px) {
+      .plan-card { min-height: auto; }
     }
   </style>
 </body>
