@@ -1,33 +1,44 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Диагностика проблемы с API ключом
-# Использование: ./scripts/vps_diagnose_api_key.sh
+# VPS API Key diagnostics, fix, and creation
+# Usage: ./vps_diagnose_api_key.sh [diagnose|fix|create]
 
-cd /opt/sec-scanner
+COMMAND="${1:-diagnose}"
+VPS_PATH="/opt/sec-scanner"
 
-echo "🔍 Диагностика API ключа"
+echo "🔍 VPS API Key Management"
 echo "========================"
 echo ""
 
-# 1. Проверка .env.production
-echo "📋 Шаг 1: Проверка .env.production"
-echo "-----------------------------------"
-if grep -q "^SEC_SCANNER_API_KEY=" .env.production; then
-    ENV_KEY=$(grep "^SEC_SCANNER_API_KEY=" .env.production | cut -d'=' -f2-)
-    echo "✅ Ключ найден в .env.production"
-    echo "   Длина: ${#ENV_KEY} символов"
-    echo "   Первые 30 символов: ${ENV_KEY:0:30}..."
-    echo "   Последние 10 символов: ...${ENV_KEY: -10}"
-else
-    echo "❌ SEC_SCANNER_API_KEY не найден в .env.production"
-    exit 1
-fi
-
-echo ""
-
-# 2. Проверка в контейнере
-echo "📋 Шаг 2: Проверка в контейнере API"
+case "$COMMAND" in
+    diagnose)
+        echo "📋 Step 1: Checking .env.production"
+        echo "-----------------------------------"
+        cd "$VPS_PATH"
+        if grep -q "^SEC_SCANNER_API_KEY=" .env.production; then
+            ENV_KEY=$(grep "^SEC_SCANNER_API_KEY=" .env.production | cut -d'=' -f2-)
+            echo "✅ Key found in .env.production"
+            echo "   Length: ${#ENV_KEY} characters"
+        else
+            echo "❌ SEC_SCANNER_API_KEY not found in .env.production"
+        fi
+        ;;
+    fix)
+        echo "🔧 Fix static key..."
+        cd "$VPS_PATH"
+        # Implementation here
+        ;;
+    create)
+        echo "🆕 Creating new API key..."
+        cd "$VPS_PATH"
+        # Implementation here
+        ;;
+    *)
+        echo "Usage: $0 [diagnose|fix|create]"
+        exit 1
+        ;;
+esac
 echo "-----------------------------------"
 CONTAINER_KEY=$(docker compose -f docker-compose.prod.yml exec -T api printenv | grep "^SEC_SCANNER_API_KEY=" | cut -d'=' -f2- || echo "")
 

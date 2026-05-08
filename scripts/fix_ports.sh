@@ -1,33 +1,61 @@
 #!/bin/bash
-# Скрипт для исправления проброса портов PostgreSQL и Redis
-# Дата: 2026-01-28
+# Fix Docker ports (supports WSL mode)
+# Usage: ./fix_ports.sh [--wsl]
 
 set -e
+
+WSL_MODE=false
+if [[ "$1" == "--wsl" ]]; then
+    WSL_MODE=true
+fi
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-echo "🔧 Исправление проброса портов для PostgreSQL и Redis"
-echo "======================================================"
+echo "🔧 Fixing Docker ports..."
+echo "========================"
 echo ""
 
-# Проверяем Docker
 if ! command -v docker &> /dev/null; then
-    echo "❌ Docker не найден. Установите Docker."
+    echo "❌ Docker not found"
     exit 1
 fi
 
-# Проверяем docker-compose
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ docker-compose не найден. Установите docker-compose."
-    exit 1
-fi
-
-echo "📋 Текущий статус контейнеров:"
-docker-compose -f docker-compose.prod.yml ps db redis 2>/dev/null || echo "   Контейнеры не запущены"
+echo "📋 Current container status:"
+docker-compose -f docker-compose.prod.yml ps db redis 2>/dev/null || echo "  Containers not running"
 echo ""
 
-echo "🛑 Останавливаем и удаляем контейнеры..."
+if $WSL_MODE; then
+    echo "📦 Step 1: Stopping containers..."
+    docker-compose -f docker-compose.prod.yml down
+    echo "✅ Containers stopped"
+
+    echo "🔧 Step 2: Removing old networks..."
+    docker network rm fastapi-project_data fastapi-project_app 2>/dev/null || true
+    echo "✅ Old networks removed"
+
+    echo "🔍 Step 3: Checking networks..."
+    if docker network ls | grep -q fastapi-project; then
+        echo "⚠️  Some networks still exist, forcing..."
+        docker network rm fastapi-project_data fastapi-project_app 2>/dev/null || true
+    fi
+
+    echo "🔧 Step 4: Starting containers..."
+    docker-compose -f docker-compose.prod.yml up -d db redis
+    echo "✅ Containers started"
+else
+    echo "🛑 Stopping and removing containers..."
+    docker-compose -f docker-compose.prod.yml rm -fs db redis
+    echo "✅ Containers removed"
+
+    echo "🔧 Starting containers..."
+    docker-compose -f docker-compose.prod.yml up -d db redis
+    echo "✅ Containers started"
+fi
+
+echo ""
+echo "📋 Final status:"
+docker-compose -f docker-compose.prod.yml ps db redis
 docker-compose -f docker-compose.prod.yml stop db redis 2>/dev/null || true
 docker-compose -f docker-compose.prod.yml rm -f db redis 2>/dev/null || true
 echo "✅ Контейнеры остановлены и удалены"
