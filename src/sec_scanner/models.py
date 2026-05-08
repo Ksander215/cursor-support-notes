@@ -44,6 +44,9 @@ class Organization(Base):
     is_active = Column(Boolean, nullable=False, server_default=text("true"))
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    referral_code = Column(String, nullable=True, unique=True)
+    referred_by_org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
+
 
 class ApiKey(Base):
     __tablename__ = "api_keys"
