@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fix .env.production on VPS: remove wrong DATABASE_URL, set REQUIRE_API_KEY=true, add UI_API_BASE_URL if missing.
 # Run on VPS: bash fix_env_production_on_vps.sh (from /opt/sec-scanner) or:
-#   ssh root@85.239.38.163 "cd /opt/sec-scanner && bash -s" < scripts/fix_env_production_on_vps.sh
+#   ssh root@${VPS_HOST:?} "cd /opt/sec-scanner && bash -s" < scripts/fix_env_production_on_vps.sh
 
 set -e
 ENV_FILE="${1:-.env.production}"

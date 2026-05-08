@@ -4,7 +4,7 @@
 
 set -e
 
-VPS_HOST="85.239.38.163"
+VPS_HOST="${VPS_HOST:?}"
 VPS_USER="root"
 VPS_PATH="/opt/sec-scanner"
 SSH_KEY="$HOME/.ssh/id_ed25519"

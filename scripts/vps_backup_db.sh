@@ -59,10 +59,10 @@ log "Создание бэкапа: $BACKUP_FILE"
 
 # Бэкап базы данных (custom format - сжатый)
 if docker compose -f "$COMPOSE_FILE" exec -T \
-    -e PGPASSWORD="${POSTGRES_PASSWORD:-sec_scanner}" \
+    -e PGPASSWORD="${POSTGRES_PASSWORD:?}" \
     db pg_dump \
-    -U "${POSTGRES_USER:-sec_scanner}" \
-    -d "${POSTGRES_DB:-sec_scanner}" \
+    -U "${POSTGRES_USER:?}" \
+    -d "${POSTGRES_DB:?}" \
     -Fc \
     --no-owner --no-acl \
     > "$BACKUP_FILE" 2>>"$LOG_FILE"; then
@@ -75,9 +75,9 @@ fi
 
 # Бэкап глобальных объектов (роли, права)
 if docker compose -f "$COMPOSE_FILE" exec -T \
-    -e PGPASSWORD="${POSTGRES_PASSWORD:-sec_scanner}" \
+    -e PGPASSWORD="${POSTGRES_PASSWORD:?}" \
     db pg_dumpall \
-    -U "${POSTGRES_USER:-sec_scanner}" \
+    -U "${POSTGRES_USER:?}" \
     --globals-only \
     > "$BACKUP_GLOBALS" 2>>"$LOG_FILE"; then
     log "[OK] Бэкап глобальных объектов создан: $BACKUP_GLOBALS"

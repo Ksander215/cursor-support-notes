@@ -63,8 +63,8 @@ sleep 2
 
 echo "🔄 Завершение активных подключений..."
 docker compose -f "$COMPOSE_FILE" exec -T \
-    -e PGPASSWORD="${POSTGRES_PASSWORD:-sec_scanner}" \
-    db psql -U "${POSTGRES_USER:-sec_scanner}" -d "postgres" -v ON_ERROR_STOP=1 <<'SQL'
+    -e PGPASSWORD="${POSTGRES_PASSWORD:?}" \
+    db psql -U "${POSTGRES_USER:?}" -d "postgres" -v ON_ERROR_STOP=1 <<'SQL'
 SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
 WHERE datname = 'sec_scanner' AND pid <> pg_backend_pid();
@@ -72,9 +72,9 @@ SQL
 
 echo "📥 Восстановление базы данных..."
 if docker compose -f "$COMPOSE_FILE" exec -T \
-    -e PGPASSWORD="${POSTGRES_PASSWORD:-sec_scanner}" \
+    -e PGPASSWORD="${POSTGRES_PASSWORD:?}" \
     db pg_restore \
-    -U "${POSTGRES_USER:-sec_scanner}" \
+    -U "${POSTGRES_USER:?}" \
     -d sec_scanner \
     --clean \
     --if-exists \

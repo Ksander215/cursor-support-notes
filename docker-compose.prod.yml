@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: sec_scanner
       POSTGRES_USER: sec_scanner
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-sec_scanner}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?}"
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -75,7 +75,7 @@ services:
     environment:
       APP_NAME: sec-scanner.pro API
       WEB_CHECK_BASE_URL: http://web-check:3000
-      SEC_SCANNER_DATABASE_URL: "postgresql+psycopg://sec_scanner:${POSTGRES_PASSWORD:-sec_scanner}@db:5432/sec_scanner"
+      SEC_SCANNER_DATABASE_URL: "postgresql+psycopg://sec_scanner:${POSTGRES_PASSWORD:?}@db:5432/sec_scanner"
       SEC_SCANNER_REDIS_URL: redis://redis:6379/0
       SEC_SCANNER_AUTO_CREATE_SCHEMA: "false"
       LOG_LEVEL: INFO
@@ -132,7 +132,7 @@ services:
     env_file:
       - .env.production
     environment:
-      SEC_SCANNER_DATABASE_URL: "postgresql+psycopg://sec_scanner:${POSTGRES_PASSWORD:-sec_scanner}@db:5432/sec_scanner"
+      SEC_SCANNER_DATABASE_URL: "postgresql+psycopg://sec_scanner:${POSTGRES_PASSWORD:?}@db:5432/sec_scanner"
       SEC_SCANNER_REDIS_URL: redis://redis:6379/0
       SEC_SCANNER_AUTO_CREATE_SCHEMA: "false"
       LOG_LEVEL: INFO

@@ -14,7 +14,7 @@ HEAD='services:
     environment:
       POSTGRES_DB: sec_scanner
       POSTGRES_USER: sec_scanner
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-sec_scanner}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?}"
     volumes:
       - pgdata:/var/lib/postgresql/data
 '
