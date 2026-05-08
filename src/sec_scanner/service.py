@@ -22,6 +22,36 @@ def get_executor() -> ThreadPoolExecutor:
     return _executor
 
 
+def _make_progress_callback(audit_id: str, steps: list[str]):
+    """Create progress callback for SecurityAgentV2.audit_domain()"""
+    completed_steps = [0]
+    total = len(steps)
+    
+    def on_progress(
+        step_name: str,
+        step_status: str,
+        step_progress: int | None = None,
+        step_message: str | None = None,
+        total_steps: int | None = None,
+        completed_steps: int | None = None,
+    ):
+        ts = total_steps if total_steps is not None else total
+        cs = completed_steps if completed_steps is not None else completed_steps[0]
+        
+        _update_progress(
+            audit_id, step_name, step_status,
+            step_progress=step_progress,
+            step_message=step_message,
+            total_steps=ts,
+            completed_steps=cs,
+        )
+        
+        if step_status == "completed":
+            completed_steps[0] += 1
+    
+    return on_progress
+
+
 def _update_progress(
     audit_id: str,
     step_name: str,
@@ -100,169 +130,11 @@ def run_audit(audit_id: str, target: str, mode: str) -> None:
                 step_status="pending",
             )
 
-        # Инициализируем агент с правильным режимом
-        # SecurityAgentV2 автоматически выберет Nmap если доступен для normal/full режимов
+        # Create agent and run audit with progress callback
         agent = SecurityAgentV2(mode=mode)
-
-        # Calculate total steps for progress
-        total_steps = len(steps)
-        completed_steps = 0
-
-        # Run SSL scan with progress tracking
-        _update_progress(
-            audit_id, "ssl", "running",
-            step_progress=0,
-            step_message="Scanning SSL certificate...",
-            total_steps=total_steps,
-            completed_steps=completed_steps,
-        )
-        ssl_results = agent.scanners["ssl"].scan(host)
-        _update_progress(
-            audit_id, "ssl", "completed",
-            step_progress=100,
-            step_message="SSL scan completed",
-            total_steps=total_steps,
-            completed_steps=completed_steps,
-        )
-        completed_steps += 1
-
-        # Run Headers scan with progress tracking
-        _update_progress(
-            audit_id, "headers", "running",
-            step_progress=0,
-            step_message="Scanning security headers...",
-            total_steps=total_steps,
-            completed_steps=completed_steps,
-        )
-        headers_results = agent.scanners["headers"].scan(host)
-        _update_progress(
-            audit_id, "headers", "completed",
-            step_progress=100,
-            step_message="Security headers scan completed",
-            total_steps=total_steps,
-            completed_steps=completed_steps,
-        )
-        completed_steps += 1
-
-        # Run Port scan if needed
-        port_results = None
-        if mode in ["normal", "full"]:
-            _update_progress(
-                audit_id, "ports", "running",
-                step_progress=0,
-                step_message="Scanning open ports...",
-                total_steps=total_steps,
-                completed_steps=completed_steps,
-            )
-            port_results = agent.scanners["ports"].scan(host)
-            _update_progress(
-                audit_id, "ports", "completed",
-                step_progress=100,
-                step_message="Port scan completed",
-                total_steps=total_steps,
-                completed_steps=completed_steps,
-            )
-            completed_steps += 1
-
-        # Run Web Vulnerability scan if needed
-        web_results = None
-        if mode == "full":
-            _update_progress(
-                audit_id, "web_vulnerabilities", "running",
-                step_progress=0,
-                step_message="Scanning web vulnerabilities...",
-                total_steps=total_steps,
-                completed_steps=completed_steps,
-            )
-            web_results = agent.scanners["web"].light_scan(host)
-            _update_progress(
-                audit_id, "web_vulnerabilities", "completed",
-                step_progress=100,
-                step_message="Web vulnerability scan completed",
-                total_steps=total_steps,
-                completed_steps=completed_steps,
-            )
-            completed_steps += 1
-
-        # Build results similar to SecurityAgentV2.audit_domain
-        results = {
-            "audit_id": f"{host}_{audit_id}",
-            "domain": host,
-            "timestamp": datetime.now().isoformat(),
-            "mode": mode,
-            "categories": {},
-        }
-
-        results["categories"]["ssl"] = {
-            "scanner": "AdvancedSSLScanner",
-            "results": ssl_results,
-            "score": agent.calculate_ssl_score(ssl_results),
-        }
-
-        results["categories"]["headers"] = {
-            "scanner": "SecurityHeadersScanner",
-            "results": headers_results,
-            "score": (
-                headers_results.get("security_score", 0) if headers_results.get("success") else 0
-            ),
-        }
-
-        if mode in ["normal", "full"]:
-            results["categories"]["ports"] = {
-                "scanner": "SafePortScanner",
-                "results": port_results,
-                "score": (
-                    port_results.get("security_score", 0)
-                    if port_results and port_results.get("success")
-                    else 0
-                ),
-            }
-        else:
-            results["categories"]["ports"] = {
-                "scanner": "SafePortScanner",
-                "skipped": "Port scanning disabled in safe mode",
-                "score": 50,
-            }
-
-        if mode == "full":
-            results["categories"]["web_vulnerabilities"] = {
-                "scanner": "WebVulnerabilityScanner",
-                "results": web_results,
-                "score": (
-                    web_results.get("security_score", 0)
-                    if web_results and web_results.get("success")
-                    else 0
-                ),
-            }
-        else:
-            results["categories"]["web_vulnerabilities"] = {
-                "scanner": "WebVulnerabilityScanner",
-                "skipped": f"Web vulnerability scanning requires full mode (current: {mode})",
-                "score": 50,
-            }
-
-        results["overall_score"] = agent.calculate_overall_score(results["categories"])
-        results["risk_level"] = agent.determine_risk_level(results["overall_score"])
-        results["critical_issues"] = agent.find_critical_issues(results["categories"])
-        results["recommendations"] = agent.generate_recommendations(results["categories"])
-
-        # Generate report with progress tracking
-        _update_progress(
-            audit_id, "report", "running",
-            step_progress=0,
-            step_message="Generating report...",
-            total_steps=total_steps,
-            completed_steps=completed_steps,
-        )
-        results["report_md"] = agent.generate_comprehensive_report(results)
-        _update_progress(
-            audit_id, "report", "completed",
-            step_progress=100,
-            step_message="Report generated",
-            total_steps=total_steps,
-            completed_steps=completed_steps,
-        )
-        completed_steps += 1
+        callback = _make_progress_callback(audit_id, steps)
+        results = agent.audit_domain(host, on_progress=callback)
+        results["audit_id"] = f"{host}_{audit_id}"
 
         # Get audit row to find tenant_id
         audit_row = db.get_audit(audit_id)
