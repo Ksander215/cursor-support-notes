@@ -244,3 +244,155 @@ class Payment(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     processed_at = Column(DateTime(timezone=True), nullable=True)  # When webhook was processed
+
+
+class DigitalOrder(Base):
+    """
+    Digital order records for product sales (templates, courses, etc.)
+    """
+
+    __tablename__ = "digital_orders"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Order ID for external reference
+    order_id = Column(String, nullable=False, unique=True, index=True)
+
+    # Customer info
+    email = Column(String, nullable=False, index=True)
+
+    # Product info
+    product_code = Column(String, nullable=False)  # e.g. "template_01", "course_01"
+    product_name = Column(String, nullable=False)
+
+    # Amount
+    amount = Column(Float, nullable=False)
+    currency = Column(String, default="RUB")
+
+    # Status
+    payment_status = Column(
+        String, nullable=False, index=True
+    )  # "pending", "paid", "canceled", "refunded"
+    delivery_status = Column(String, nullable=False, index=True)  # "pending", "delivered", "failed"
+    delivery_attempts = Column(Integer, default=0)
+
+    # Delivery info
+    delivery_data = Column(JSON, nullable=True)  # Email, download link, etc.
+
+    # Extra data
+    extra_data = Column(JSON, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class Lead(Base):
+    """Lead records for marketing funnel."""
+
+    __tablename__ = "leads"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Contact info
+    email = Column(String, nullable=False, unique=True, index=True)
+    phone = Column(String, nullable=True)
+
+    # Source attribution
+    source = Column(String, nullable=False, index=True)  # "free_scan", "webinar", "organic", etc.
+    utm_campaign = Column(String, nullable=True)
+    utm_content = Column(String, nullable=True)
+    utm_medium = Column(String, nullable=True)
+    utm_source = Column(String, nullable=True)
+    utm_term = Column(String, nullable=True)
+
+    # Lead data
+    name = Column(String, nullable=True)
+    company = Column(String, nullable=True)
+    role = Column(String, nullable=True)
+
+    # Scoring
+    score = Column(Integer, nullable=True)
+    segment = Column(String, nullable=True, index=True)  # "hot", "warm", "cold", "cold_out"
+
+    # Status
+    status = Column(
+        String, nullable=False, index=True
+    )  # "new", "contacted", "qualified", "converted", "lost"
+
+    # Audit linkage (if lead came from free scan)
+    audit_id = Column(String, nullable=True, index=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+    converted_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class Referral(Base):
+    """Referral tracking for partner program."""
+
+    __tablename__ = "referrals"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Organizations
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    referred_org_id = Column(
+        Integer, ForeignKey("organizations.id"), nullable=True, index=True
+    )  # New org using referral code
+    partner_org_id = Column(
+        Integer, ForeignKey("organizations.id"), nullable=True, index=True
+    )  # Partner who referred
+
+    # Referral code
+    referral_code = Column(String, nullable=False, unique=True, index=True)
+
+    # Payment linkage (for commission tracking)
+    payment_id = Column(Integer, ForeignKey("payments.id"), nullable=True, index=True)
+
+    # Commission
+    commission_amount = Column(Float, nullable=True)
+    commission_paid = Column(Boolean, default=False)
+
+    # Status
+    status = Column(String, nullable=False, index=True)  # "pending", "converted", "paid", "expired"
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    converted_at = Column(DateTime(timezone=True), nullable=True)
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class Webhook(Base):
+    """Webhook configuration for notifications."""
+
+    __tablename__ = "webhooks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Organization
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+
+    # Webhook config
+    url = Column(String, nullable=False)
+    secret = Column(String, nullable=True)
+
+    # Events to listen to
+    events = Column(JSON, nullable=False)  # ["payment.succeeded", "payment.failed", etc.]
+
+    # Status
+    is_active = Column(Boolean, default=True)
+    status = Column(String, nullable=False, index=True)  # "active", "inactive", "failed"
+
+    # Retry config
+    max_retries = Column(Integer, default=3)
+
+    # Last attempt
+    last_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    last_status = Column(Integer, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=True)

@@ -49,7 +49,14 @@ class SecurityAgentV2:
             "dependencies": DependencyScanner(timeout=30),
         }
 
-    def audit_domain(self, domain):
+    def audit_domain(self, domain, on_progress=None):
+        """Scan domain for security issues.
+
+        Args:
+            domain: Domain to scan
+            on_progress: Callback function(step_name, step_status, step_progress, step_message, total_steps, completed_steps)
+                     If None - no callback is called (backward compatibility).
+        """
         audit_id = f"{domain}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         results = {
@@ -60,13 +67,37 @@ class SecurityAgentV2:
             "categories": {},
         }
 
+        steps = ["ssl", "headers"]
+        if self.mode in ["normal", "full"]:
+            steps.append("ports")
+        if self.mode == "full":
+            steps.append("web_vulnerabilities")
+        steps.append("report")
+        total_steps = len(steps)
+        completed_steps = 0
+
+        def _progress(step_name, step_status, step_progress=0, step_message=""):
+            if on_progress:
+                on_progress(
+                    step_name=step_name,
+                    step_status=step_status,
+                    step_progress=step_progress,
+                    step_message=step_message,
+                    total_steps=total_steps,
+                    completed_steps=completed_steps,
+                )
+
+        _progress("ssl", "running", 0, "Scanning SSL certificate...")
         ssl_results = self.scanners["ssl"].scan(domain)
         results["categories"]["ssl"] = {
             "scanner": "AdvancedSSLScanner",
             "results": ssl_results,
             "score": self.calculate_ssl_score(ssl_results),
         }
+        completed_steps += 1
+        _progress("ssl", "completed", 100, "SSL scan completed")
 
+        _progress("headers", "running", 0, "Scanning HTTP headers...")
         headers_results = self.scanners["headers"].scan(domain)
         results["categories"]["headers"] = {
             "scanner": "SecurityHeadersScanner",
@@ -75,8 +106,11 @@ class SecurityAgentV2:
                 headers_results.get("security_score", 0) if headers_results.get("success") else 0
             ),
         }
+        completed_steps += 1
+        _progress("headers", "completed", 100, "HTTP headers scan completed")
 
         if self.mode in ["normal", "full"]:
+            _progress("ports", "running", 0, "Scanning ports...")
             port_results = self.scanners["ports"].scan(domain)
             results["categories"]["ports"] = {
                 "scanner": "SafePortScanner",
@@ -85,6 +119,8 @@ class SecurityAgentV2:
                     port_results.get("security_score", 0) if port_results.get("success") else 0
                 ),
             }
+            completed_steps += 1
+            _progress("ports", "completed", 100, "Port scan completed")
         else:
             results["categories"]["ports"] = {
                 "scanner": "SafePortScanner",
@@ -93,6 +129,7 @@ class SecurityAgentV2:
             }
 
         if self.mode == "full":
+            _progress("web_vulnerabilities", "running", 0, "Scanning web vulnerabilities...")
             web_results = self.scanners["web"].light_scan(domain)
             results["categories"]["web_vulnerabilities"] = {
                 "scanner": "WebVulnerabilityScanner",
@@ -101,6 +138,8 @@ class SecurityAgentV2:
                     web_results.get("security_score", 0) if web_results.get("success") else 0
                 ),
             }
+            completed_steps += 1
+            _progress("web_vulnerabilities", "completed", 100, "Web vulnerability scan completed")
         else:
             results["categories"]["web_vulnerabilities"] = {
                 "scanner": "WebVulnerabilityScanner",
@@ -108,12 +147,15 @@ class SecurityAgentV2:
                 "score": 50,
             }
 
+        _progress("report", "running", 0, "Generating report...")
         results["overall_score"] = self.calculate_overall_score(results["categories"])
         results["risk_level"] = self.determine_risk_level(results["overall_score"])
         results["critical_issues"] = self.find_critical_issues(results["categories"])
         results["recommendations"] = self.generate_recommendations(results["categories"])
 
         results["report_md"] = self.generate_comprehensive_report(results)
+        completed_steps += 1
+        _progress("report", "completed", 100, "Report generated")
 
         self.results_cache[audit_id] = results
         return results
